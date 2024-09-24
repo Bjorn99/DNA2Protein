@@ -1,4 +1,18 @@
 from flask import Flask, request, render_template_string
+from dotenv import load_dotenv
+import os
+
+# Load environment variables from .env file
+load_dotenv()
+
+# Create a Flask application instance
+app = Flask(__name__)
+
+# Configure the application with environment variables
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Secret key for sessions and CSRF protection
+app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')  # Database connection URL (if needed)
+app.config['API_KEY'] = os.getenv('API_KEY')  # API key for external services (if needed)
+
 
 app = Flask(__name__)
 
@@ -81,8 +95,9 @@ def index():
     ''', protein=protein)
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
+    port = int(os.environ.get('PORT', 5000))  # Get the port from environment or default to 5000
+    app.run(host='0.0.0.0', port=port, debug=True)
+    
 
 # # Integrate user input
 # if __name__ == "__main__":
