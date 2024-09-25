@@ -1,4 +1,17 @@
+# Python cache files
 __pycache__/
 *.pyc
-.env
+
+# Virtual environment directories
 venv/
+.venv/
+
+# Poetry files
+poetry.lock
+
+# Environment variables file
+.env
+
+# IDE specific files (optional)
+.idea/
+.vscode/

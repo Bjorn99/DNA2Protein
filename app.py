@@ -69,6 +69,18 @@ def index():
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>DNA to Protein Translator</title>
             <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
+            <style>
+        #arrow-icon {
+            transition: transform 0.3s ease; /* Smooth transition for movement */
+        }
+
+        #submit-btn:hover #arrow-icon {
+            transform: translateX(5px); /* Move the arrow to the right on hover */
+        }
+    </style>        
+
         </head>
         <body class="bg-gray-100">
             <div class="container mx-auto p-4">
@@ -79,8 +91,8 @@ def index():
                     
                      <!-- Centering the button -->
                     <div class="flex justify-center">
-                        <button type="submit" class="bg-blue-500 hover:bg-green-600 text-white font-bold py-2 px-10 rounded-md">
-                            Translate       
+                        <button id="submit-btn" type="submit" class="bg-blue-500 hover:bg-green-600 text-white font-bold py-1.5 px-10 rounded-md flex items-center"><i class="fas fa-arrow-right mr-2" id="arrow-icon"></i>
+                        Translate
                         </button>
                     </div>
                 </form>
