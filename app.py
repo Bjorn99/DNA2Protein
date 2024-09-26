@@ -1,6 +1,8 @@
 from flask import Flask, request, render_template_string
 from dotenv import load_dotenv
 import os
+import re
+from collections import Counter
 
 # Load environment variables from .env file
 load_dotenv()
@@ -9,63 +11,109 @@ load_dotenv()
 app = Flask(__name__)
 
 # Configure the application with environment variables
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')  # Secret key for sessions and CSRF protection
-app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')  # Database connection URL (if needed)
-app.config['API_KEY'] = os.getenv('API_KEY')  # API key for external services (if needed)
-
-
-app = Flask(__name__)
-
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
+app.config['API_KEY'] = os.getenv('API_KEY')
 
 gencode = {
-'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
-'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
-'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
-'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
-'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
-'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
-'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
-'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
-'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
-'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
-'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
-'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
-'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
-'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
-'TAC':'Y', 'TAT':'Y', 'TAA':'_', 'TAG':'_',
-'TGC':'C', 'TGT':'C', 'TGA':'_', 'TGG':'W'
+    'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
+    'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
+    'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
+    'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
+    'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
+    'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
+    'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
+    'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
+    'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
+    'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
+    'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
+    'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
+    'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
+    'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
+    'TAC':'Y', 'TAT':'Y', 'TAA':'*', 'TAG':'*',
+    'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'
 }
 
-# STOP CODONS "TAA", "TAG", "TGA"
+# Kozak consensus sequence
+kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
+
+def validate_dna(dna):
+    """Validate the DNA sequence."""
+    valid_nucleotides = set('ATCG')
+    return all(nucleotide in valid_nucleotides for nucleotide in dna)
+
+def find_orfs(dna):
+    """Find all open reading frames in the given DNA sequence."""
+    if len(dna) < 3:
+        return []   
+    pattern = re.compile(r'(?=(ATG(?:...)*?(?:TAA|TAG|TGA)))')
+    return pattern.findall(dna)
 
 def translate_dna(dna):
-    # Remove spaces from the DNA sequence
-    dna = dna.replace(" ", "").replace("\n", "").upper( )
-
-    # check if the length of dna is a multiple of 3 
-    if len(dna) % 3 != 0:
-        dna = dna[:len(dna) - (len(dna) % 3)] # Truncate to nearest multiple of 3
-        
+    """Translate a DNA sequence to a protein sequence."""
     protein = []
-    stop_codons = {'TAA', 'TAG', 'TGA'} 
-
-    for start in range(0, len(dna), 3):
-        codon = dna[start:start+3]
-        aa = gencode.get(codon.upper(), "X")  # Use "X" for unknown codons
-        protein.append(aa)
-
-        if codon in stop_codons:
+    for i in range(0, len(dna) - 2, 3):
+        codon = dna[i:i+3]
+        if codon in {'TAA', 'TAG', 'TGA'}:
             break
+        amino_acid = gencode.get(codon, 'X')  # 'X' for unknown codons
+        protein.append(amino_acid)
     return ''.join(protein)
+
+def find_kozak_sequences(dna):
+    """Find Kozak consensus sequences in the DNA."""
+    return [match.start() for match in kozak_regex.finditer(dna)]
+
+def calculate_cai(dna):
+    """Calculate the Codon Adaptation Index (CAI) for a DNA sequence."""
+    codon_counts = Counter(dna[i:i+3] for i in range(0, len(dna) - 2, 3))
+    total_codons = sum(codon_counts.values())
+    return sum(count / total_codons * len(gencode[codon]) for codon, count in codon_counts.items() if codon in gencode) / (len(dna) // 3)
+
+def predict_signal_peptide(protein):
+    """Simple prediction of signal peptide presence based on N-terminal sequence."""
+    n_terminal = protein[:30]  # Consider first 30 amino acids
+    if n_terminal.count('L') + n_terminal.count('A') + n_terminal.count('V') > 10:
+        return "Potential signal peptide detected"
+    return "No signal peptide detected"
+
+def analyze_dna(dna):
+    """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
+    dna = ''.join(dna.split()).upper()
+    
+    if not validate_dna(dna):
+        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+    
+    """Check for continuous strings of one nucleotide"""
+    if len(set(dna)) == 1:
+        return {"error": "DNA sequence consists of a single nucleotide repeated."}
+    
+    orfs = find_orfs(dna)
+    if not orfs:
+        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+    
+    longest_orf = max(orfs, key=len)
+    protein = translate_dna(longest_orf)
+    kozak_positions = find_kozak_sequences(dna)
+    cai = calculate_cai(longest_orf)
+    signal_peptide = predict_signal_peptide(protein)
+    
+    return {
+        "longest_orf": longest_orf,
+        "protein": protein,
+        "kozak_positions": kozak_positions,
+        "cai": cai,
+        "signal_peptide": signal_peptide
+    }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    protein = ""
+    result = None
     if request.method == "POST":
         dna_sequence = request.form['dna_sequence']
-        protein = translate_dna(dna_sequence)
-    
-    return render_template_string('''
+        result = analyze_dna(dna_sequence)
+
+    return render_template_string('''   
         <!doctype html>
         <html lang="en">
         <head>
@@ -74,116 +122,139 @@ def index():
             <title>DNA to Protein Translator</title>
             <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-
             <style>
-             body {
-            background-color: #f7fafc; /* Light grayish-blue background */
-        }
-
-        /* Centering the container */
-        .container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh; /* Full height */
-        }
-
-        input[type="text"] {
-            width: auto; /* Make width auto to flex according to content */
-            max-width: 100%; /* Prevent overflow beyond container */
-            padding: 10px; /* Add padding for better spacing */
-            border: 2px solid #38a169; /* Green border */
-            border-radius: 5px; /* Rounded corners */
-            transition: border-color 0.3s ease; /* Smooth transition for focus */
-        }
-
-        input[type="text"]:focus {
-            border-color: #2f855a; /* Darker green on focus */
-            outline: none; /* Remove default outline */
-        }   
-
-        /* Styling for the result box */
-        .result-box {
-    background-color: #f0fff4; /* Light green background */
-    border: 2px solid #38a169; /* Green border */
-    border-radius: 8px; /* Rounded corners */
-    padding: 20px; /* Padding around text */
-    width: auto; /* Width adjusts based on content */
-    max-width: 90%; /* Maximum width */
-    transition: all 0.3s ease; /* Smooth transition */
-    opacity: 0; /* Start hidden for animation */
-    transform: translateY(-20px); /* Slide up effect */
-    white-space: pre-wrap; /* Preserve whitespace and wrap text */
-    word-wrap: break-word; /* Break long words onto the next line */
-    overflow-wrap: break-word; /* Break words if they are too long */
-}
-
-        /* Animation when showing result */
-        .result-box.show {
-            opacity: 1; /* Fully visible */
-            transform: translateY(0); /* Move to original position */
-        }
-
-        #arrow-icon {
-            transition: transform 0.3s ease; /* Smooth transition for movement */
-        }
-
-        #submit-btn:hover #arrow-icon {
-            transform: translateX(5px); /* Move the arrow to the right on hover */
-        }
-    </style>
-
-
-
+                body {
+                    background-color: #f0f4f8;
+                    color: #2d3748;
+                    font-family: Arial, sans-serif;
+                }
+                .container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 2rem;
+                }
+                .title {
+                    color: #2b6cb0;
+                    font-size: 2.5rem;
+                    font-weight: bold;
+                    text-align: center;
+                    margin-bottom: 2rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                }
+                .input-form {
+                    background-color: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .input-label {
+                    font-weight: bold;
+                    margin-bottom: 0.5rem;
+                    color: #4a5568;
+                }
+                .input-field {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 2px solid #cbd5e0;
+                    border-radius: 4px;
+                    font-size: 1rem;
+                    transition: border-color 0.3s ease;
+                }
+                .input-field:focus {
+                    border-color: #4299e1;
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+                }
+                .submit-button {
+                    background-color: #0C6E6D;
+                    color: white;
+                    font-weight: bold;
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 4px;
+                    transition: background-color 0.3s ease;
+                    display: block;
+                    margin: 1.5rem auto 0;
+                }
+                .submit-button:hover {
+                    background-color: #56C0A7   ;
+                }
+                .result-box {
+                    background-color: white;
+                    border-radius: 8px;
+                    padding: 1.5rem;
+                    margin-top: 2rem;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                }
+                .result-title {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: #2b6cb0;
+                    margin-bottom: 1rem;
+                }
+                .result-item {
+                    margin-bottom: 1rem;
+                }
+                .result-label {
+                    font-weight: bold;
+                    color: #4a5568;
+                    margin-bottom: 0.25rem;
+                }
+                .result-value {
+                    background-color: #edf2f7;
+                    padding: 0.5rem;
+                    border-radius: 4px;
+                    font-family: monospace;
+                    word-break: break-all;
+                }
+            </style>
         </head>
-        <body class="bg-gray-100">
-            <div class="container mx-auto p-4">
-                <h1 class="text-3xl font-bold text-center mb-4">Translate DNA to Protein</h1>
-                <form method="post" class="bg-white p-6 rounded shadow-md">
-                    <label for="dna_sequence" class="block text-gray-700 flex">Enter DNA Sequence:</label>
-                    <input type="text" id="dna_sequence" name="dna_sequence" required class="border border-gray-300 p-2 w-full rounded mb-4">
-                    
-                     <!-- Centering the button -->
-                    <div class="flex justify-center mb-4">
-                        <button id="submit-btn" type="submit" class="bg-blue-500 hover:bg-green-600 text-white font-bold py-1.5 px-10 rounded-md flex items-center transition-transform duration-300"><i class="fas fa-arrow-right mr-2 transform transition-transform duration-300 hover:translate-x-1" id="arrow-icon"></i>
-                        Translate
-                        </button>
-                    </div>
+        <body>
+            <div class="container">
+                <h1 class="title">DNA to Protein Translator</h1>
+                <form method="post" class="input-form">
+                    <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
+                    <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field">
+                    <button type="submit" class="submit-button">
+                        <i class="fas fa-dna mr-2"></i> Analyze DNA
+                    </button>
                 </form>
                 
-                {% if protein %}
-                    <h2 class="text-xl font-semibold mt-4 text-center">Protein Sequence:</h2>
-                    <div class="result-box show">{{ protein }}</div>
+                {% if result %}
+                    <div class="result-box">
+                        <h2 class="result-title">Analysis Result</h2>
+                        <div class="result-item">
+                            <div class="result-label">Longest Open Reading Frame (ORF):</div>
+                            <div class="result-value">{{ result.longest_orf }}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Translated Protein:</div>
+                            <div class="result-value">{{ result.protein }}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Kozak Sequence Positions:</div>
+                            <div class="result-value">
+                                {% if result.kozak_positions %}
+                                    {{ result.kozak_positions|join(', ') }}
+                                {% else %}
+                                    No Kozak sequences found
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Codon Adaptation Index (CAI):</div>
+                            <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Signal Peptide Prediction:</div>
+                            <div class="result-value">{{ result.signal_peptide }}</div>
+                        </div>
+                    </div>
                 {% endif %}
             </div>
-
-            <script>
-        // Optional JavaScript to add animation class after rendering
-        document.addEventListener("DOMContentLoaded", function() {
-            const resultBox = document.querySelector('.result-box');
-            if (resultBox) {
-                resultBox.classList.add('show'); // Adding show class to trigger animation
-            }
-        });
-    </script>
-
-
         </body>
         </html>
-    ''', protein=protein)
+    ''', result=result)
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))  # Get the port from environment or default to 5000
+    port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
-    
-
-# # Integrate user input
-# if __name__ == "__main__":
-#     user_input = input("Enter a DNA sequence: ")
-
-#     try:
-#         result = translate_dna(user_input)
-#         print(f'Translated Protein Sequence: {result}')
-#     except ValueError as e:
-#         print(e)                              
