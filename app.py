@@ -39,6 +39,10 @@ gencode = {
 # STOP CODONS "TAA", "TAG", "TGA"
 
 def translate_dna(dna):
+    # Remove spaces from the DNA sequence
+    dna = dna.replace(" ", "").replace("\n", "").upper( )
+
+    # check if the length of dna is a multiple of 3 
     if len(dna) % 3 != 0:
         dna = dna[:len(dna) - (len(dna) % 3)] # Truncate to nearest multiple of 3
         
@@ -72,6 +76,55 @@ def index():
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
             <style>
+             body {
+            background-color: #f7fafc; /* Light grayish-blue background */
+        }
+
+        /* Centering the container */
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh; /* Full height */
+        }
+
+        input[type="text"] {
+            width: auto; /* Make width auto to flex according to content */
+            max-width: 100%; /* Prevent overflow beyond container */
+            padding: 10px; /* Add padding for better spacing */
+            border: 2px solid #38a169; /* Green border */
+            border-radius: 5px; /* Rounded corners */
+            transition: border-color 0.3s ease; /* Smooth transition for focus */
+        }
+
+        input[type="text"]:focus {
+            border-color: #2f855a; /* Darker green on focus */
+            outline: none; /* Remove default outline */
+        }   
+
+        /* Styling for the result box */
+        .result-box {
+    background-color: #f0fff4; /* Light green background */
+    border: 2px solid #38a169; /* Green border */
+    border-radius: 8px; /* Rounded corners */
+    padding: 20px; /* Padding around text */
+    width: auto; /* Width adjusts based on content */
+    max-width: 90%; /* Maximum width */
+    transition: all 0.3s ease; /* Smooth transition */
+    opacity: 0; /* Start hidden for animation */
+    transform: translateY(-20px); /* Slide up effect */
+    white-space: pre-wrap; /* Preserve whitespace and wrap text */
+    word-wrap: break-word; /* Break long words onto the next line */
+    overflow-wrap: break-word; /* Break words if they are too long */
+}
+
+        /* Animation when showing result */
+        .result-box.show {
+            opacity: 1; /* Fully visible */
+            transform: translateY(0); /* Move to original position */
+        }
+
         #arrow-icon {
             transition: transform 0.3s ease; /* Smooth transition for movement */
         }
@@ -79,29 +132,43 @@ def index():
         #submit-btn:hover #arrow-icon {
             transform: translateX(5px); /* Move the arrow to the right on hover */
         }
-    </style>        
+    </style>
+
+
 
         </head>
         <body class="bg-gray-100">
             <div class="container mx-auto p-4">
                 <h1 class="text-3xl font-bold text-center mb-4">Translate DNA to Protein</h1>
                 <form method="post" class="bg-white p-6 rounded shadow-md">
-                    <label for="dna_sequence" class="block text-gray-700">Enter DNA Sequence:</label>
+                    <label for="dna_sequence" class="block text-gray-700 flex">Enter DNA Sequence:</label>
                     <input type="text" id="dna_sequence" name="dna_sequence" required class="border border-gray-300 p-2 w-full rounded mb-4">
                     
                      <!-- Centering the button -->
-                    <div class="flex justify-center">
-                        <button id="submit-btn" type="submit" class="bg-blue-500 hover:bg-green-600 text-white font-bold py-1.5 px-10 rounded-md flex items-center"><i class="fas fa-arrow-right mr-2" id="arrow-icon"></i>
+                    <div class="flex justify-center mb-4">
+                        <button id="submit-btn" type="submit" class="bg-blue-500 hover:bg-green-600 text-white font-bold py-1.5 px-10 rounded-md flex items-center transition-transform duration-300"><i class="fas fa-arrow-right mr-2 transform transition-transform duration-300 hover:translate-x-1" id="arrow-icon"></i>
                         Translate
                         </button>
                     </div>
                 </form>
                 
                 {% if protein %}
-                    <h2 class="text-xl font-semibold mt-4">Protein Sequence:</h2>
-                    <p class="bg-green-100 p-4 rounded">{{ protein }}</p>
+                    <h2 class="text-xl font-semibold mt-4 text-center">Protein Sequence:</h2>
+                    <div class="result-box show">{{ protein }}</div>
                 {% endif %}
             </div>
+
+            <script>
+        // Optional JavaScript to add animation class after rendering
+        document.addEventListener("DOMContentLoaded", function() {
+            const resultBox = document.querySelector('.result-box');
+            if (resultBox) {
+                resultBox.classList.add('show'); // Adding show class to trigger animation
+            }
+        });
+    </script>
+
+
         </body>
         </html>
     ''', protein=protein)
