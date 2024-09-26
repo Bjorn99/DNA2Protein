@@ -47,7 +47,7 @@ While this application offers several valuable features for DNA sequence analysi
 
 - **Basic Signal Peptide Prediction**: The signal peptide prediction fuctionality is simplistic and based solely on N-terminal composition. More sophisticated algorithms could improve accuracy.
 
--- **Limited User Interface**: The user interface is basic and could benefit from improvements in design and usability to enhance user interaction.
+-    **Limited User Interface**: The user interface is basic and could benefit from improvements in design and usability to enhance user interaction.
 
 ## Future Enhancements
 
