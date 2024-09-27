@@ -119,7 +119,7 @@ def index():
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>DNA to Protein Translator</title>
+            <title>DNA2Protein</title>
             <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
             <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
             <style>
@@ -445,7 +445,7 @@ def index():
         </head>
         <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
             <div class="container">
-                <h1 class="title">DNA to Protein Translator</h1>
+                <h1 class="title">DNA2Protein</h1>
                 <form method="post" class="input-form">
                     <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
                     <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field" placeholder="e.g., ATGCGATCGATCG"     >
