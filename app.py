@@ -90,7 +90,7 @@ def analyze_dna(dna):
     
     orfs = find_orfs(dna)
     if not orfs:
-        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+        return {"error": "No open reading frames found."}
     
     longest_orf = max(orfs, key=len)
     protein = translate_dna(longest_orf)
@@ -126,7 +126,7 @@ def index():
                 body {
                     background-color: #f0f4f8;
                     color: #2d3748;
-                    font-family: Arial, sans-serif;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
                 }
                 .container {
                     max-width: 800px;
@@ -144,21 +144,26 @@ def index():
                 .input-form {
                     background-color: white;
                     padding: 2rem;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    border-radius: 12px;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
                 }
                 .input-label {
                     font-weight: bold;
                     margin-bottom: 0.5rem;
                     color: #4a5568;
+                    font-size: 1.1rem;
                 }
                 .input-field {
                     width: 100%;
                     padding: 0.75rem;
                     border: 2px solid #cbd5e0;
-                    border-radius: 4px;
+                    border-radius: 8px;
                     font-size: 1rem;
-                    transition: border-color 0.3s ease;
+                    transition: all 0.3s ease;
+                    margin-bottom: 1.5rem;
                 }
                 .input-field:focus {
                     border-color: #4299e1;
@@ -166,33 +171,82 @@ def index():
                     box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
                 }
                 .submit-button {
-                    background-color: #0C6E6D;
+                    position: relative;
+                    overflow: hidden;
+                    transition: all 0.3s ease;
+                    background-color: #4299e1;
                     color: white;
                     font-weight: bold;
-                    padding: 0.75rem 1.5rem;
-                    border-radius: 4px;
-                    transition: background-color 0.3s ease;
-                    display: block;
-                    margin: 1.5rem auto 0;
+                    padding: 0.75rem 2rem;
+                    border-radius: 8px;
+                    font-size: 1.1rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
                 }
                 .submit-button:hover {
-                    background-color: #56C0A7   ;
+                    background-color: #3182ce;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 6px rgba(66, 153, 225, 0.5);
+                }
+                .submit-button::before {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+                    transform: scale(0);
+                    transition: transform 0.6s ease-out;
+                }
+                .submit-button:hover::before {
+                    transform: scale(1);
+                }
+                .submit-button i {
+                    display: inline-block;
+                    margin-right: 0.5rem;
+                }
+                .submit-button:hover i {
+                    animation: dna-spin 2s linear infinite;
+                }
+                .submit-button:active {
+                    transform: translateY(0);
+                    animation: button-pulse 0.3s ease-out;
+                }
+                @keyframes dna-spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                @keyframes button-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
                 }
                 .result-box {
                     background-color: white;
-                    border-radius: 8px;
+                    border-radius: 12px;
                     padding: 1.5rem;
                     margin-top: 2rem;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                    transition: all 0.3s ease;
+                }
+                .result-box:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
                 }
                 .result-title {
                     font-size: 1.5rem;
                     font-weight: bold;
                     color: #2b6cb0;
                     margin-bottom: 1rem;
+                    border-bottom: 2px solid #e2e8f0;
+                    padding-bottom: 0.5rem;
                 }
                 .result-item {
                     margin-bottom: 1rem;
+                    transition: all 0.3s ease;
+                }
+                .result-item:hover {
+                    transform: translateX(5px);
                 }
                 .result-label {
                     font-weight: bold;
@@ -201,59 +255,249 @@ def index():
                 }
                 .result-value {
                     background-color: #edf2f7;
-                    padding: 0.5rem;
-                    border-radius: 4px;
-                    font-family: monospace;
+                    padding: 0.75rem;
+                    border-radius: 8px;
+                    font-family: 'Courier New', Courier, monospace;
                     word-break: break-all;
+                    font-size: 0.9rem;
+                    transition: all 0.3s ease;
+                }
+                .result-value:hover {
+                    background-color: #e2e8f0;
+                }
+                .error-message {
+                    color: #e53e3e;
+                    font-weight: bold;
+                    margin-top: 1rem;
+                    padding: 1rem;
+                    border-radius: 8px;
+                    background-color: #fff5f5;
+                    border: 1px solid #feb2b2;
+                }
+            </style><style>
+                body {
+                    background-color: #f0f4f8;
+                    color: #2d3748;
+                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                }
+                .container {
+                    max-width: 800px;
+                    margin: 0 auto;
+                    padding: 2rem;
+                }
+                .title {
+                    color: #2b6cb0;
+                    font-size: 2.5rem;
+                    font-weight: bold;
+                    text-align: center;
+                    margin-bottom: 2rem;
+                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+                }
+                .input-form {
+                    background-color: white;
+                    padding: 2rem;
+                    border-radius: 12px;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                }
+                .input-label {
+                    font-weight: bold;
+                    margin-bottom: 0.5rem;
+                    color: #4a5568;
+                    font-size: 1.1rem;
+                }
+                .input-field {
+                    width: 100%;
+                    padding: 0.75rem;
+                    border: 2px solid #cbd5e0;
+                    border-radius: 8px;
+                    font-size: 1rem;
+                    transition: all 0.3s ease;
+                    margin-bottom: 1.5rem;
+                }
+                .input-field:focus {
+                    border-color: #4299e1;
+                    outline: none;
+                    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+                }
+                .submit-button {
+                    position: relative;
+                    overflow: hidden;
+                    transition: all 0.3s ease;
+                    background-color: #4299e1;
+                    color: white;
+                    font-weight: bold;
+                    padding: 0.75rem 2rem;
+                    border-radius: 8px;
+                    font-size: 1.1rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                }
+                .submit-button:hover {
+                    background-color: #3182ce;
+                    transform: translateY(-2px);
+                    box-shadow: 0 4px 6px rgba(66, 153, 225, 0.5);
+                }
+                .submit-button::before {
+                    content: '';
+                    position: absolute;
+                    top: -50%;
+                    left: -50%;
+                    width: 200%;
+                    height: 200%;
+                    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
+                    transform: scale(0);
+                    transition: transform 0.6s ease-out;
+                }
+                .submit-button:hover::before {
+                    transform: scale(1);
+                }
+                .submit-button i {
+                    display: inline-block;
+                    margin-right: 0.5rem;
+                }
+                .submit-button:hover i {
+                    animation: dna-spin 2s linear infinite;
+                }
+                .submit-button:active {
+                    transform: translateY(0);
+                    animation: button-pulse 0.3s ease-out;
+                }
+                @keyframes dna-spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+                @keyframes button-pulse {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                }
+                .result-box {
+                    background-color: white;
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    margin-top: 2rem;
+                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+                    transition: all 0.3s ease;
+                }
+                .result-box:hover {
+                    transform: translateY(-5px);
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                }
+                .result-title {
+                    font-size: 1.5rem;
+                    font-weight: bold;
+                    color: #2b6cb0;
+                    margin-bottom: 1rem;
+                    border-bottom: 2px solid #e2e8f0;
+                    padding-bottom: 0.5rem;
+                }
+                .result-item {
+                    margin-bottom: 1rem;
+                    transition: all 0.3s ease;
+                }
+                .result-item:hover {
+                    transform: translateX(5px);
+                }
+                .result-label {
+                    font-weight: bold;
+                    color: #4a5568;
+                    margin-bottom: 0.25rem;
+                }
+                .result-value {
+                    background-color: #edf2f7;
+                    padding: 0.75rem;
+                    border-radius: 8px;
+                    font-family: 'Courier New', Courier, monospace;
+                    word-break: break-all;
+                    font-size: 0.9rem;
+                    transition: all 0.3s ease;
+                }
+                .result-value:hover {
+                    background-color: #e2e8f0;
+                }
+                .error-message {
+                    color: #e53e3e;
+                    font-weight: bold;
+                    margin-top: 1rem;
+                    padding: 1rem;
+                    border-radius: 8px;
+                    background-color: #fff5f5;
+                    border: 1px solid #feb2b2;
+                }
+                .footer {
+                    margin-top: 2rem;
+                    text-align: center;
+                    font-size: 0.9rem;
+                    color: #4a5568;
+                }
+                .footer a {
+                    color: #4299e1;
+                    text-decoration: none;
+                    transition: color 0.3s ease;
+                }
+                .footer a:hover {
+                    color: #2b6cb0;
+                    text-decoration: underline;
                 }
             </style>
         </head>
-        <body>
+        <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
             <div class="container">
                 <h1 class="title">DNA to Protein Translator</h1>
                 <form method="post" class="input-form">
                     <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
-                    <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field">
-                    <button type="submit" class="submit-button">
-                        <i class="fas fa-dna mr-2"></i> Analyze DNA
+                    <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field" placeholder="e.g., ATGCGATCGATCG"     >
+                    <button type="submit" class="submit-button bg-blue-400 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg">
+                            <i class="fas fa-dna mr-2"></i> Analyze DNA
                     </button>
                 </form>
                 
                 {% if result %}
                     <div class="result-box">
                         <h2 class="result-title">Analysis Result</h2>
-                        <div class="result-item">
-                            <div class="result-label">Longest Open Reading Frame (ORF):</div>
-                            <div class="result-value">{{ result.longest_orf }}</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Translated Protein:</div>
-                            <div class="result-value">{{ result.protein }}</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Kozak Sequence Positions:</div>
-                            <div class="result-value">
-                                {% if result.kozak_positions %}
-                                    {{ result.kozak_positions|join(', ') }}
-                                {% else %}
-                                    No Kozak sequences found
-                                {% endif %}
+                        {% if result.error %}
+                            <div class="error-message">{{ result.error }}</div>
+                        {% else %}
+                            <div class="result-item">
+                                <div class="result-label">Longest Open Reading Frame (ORF):</div>
+                                <div class="result-value">{{ result.longest_orf }}</div>
                             </div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Codon Adaptation Index (CAI):</div>
-                            <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
-                        </div>
-                        <div class="result-item">
-                            <div class="result-label">Signal Peptide Prediction:</div>
-                            <div class="result-value">{{ result.signal_peptide }}</div>
+                            <div class="result-item">
+                                <div class="result-label">Translated Protein:</div>
+                                <div class="result-value">{{ result.protein }}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">Kozak Sequence Positions:</div>
+                                <div class="result-value">
+                                    {% if result.kozak_positions %}
+                                        {{ result.kozak_positions|join(', ') }}
+                                    {% else %}
+                                        No Kozak sequences found
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">Codon Adaptation Index (CAI):</div>
+                                <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
+                            </div>
+                            <div class="result-item">
+                                <div class="result-label">Signal Peptide Prediction:</div>
+                                <div class="result-value">{{ result.signal_peptide }}</div>
+                            </div>
+                        {% endif %}
+
+                        <div class="footer">
+                            <p>Created by <a href="https://github.com/Bjorn99" target="_blank">Bjorn99</a></p>
+                            <p>Have issues or want to contribute? Visit the <a href="https://github.com/Bjorn99/DNA2Protein" target="_blank">GitHub repository</a>.</p>
                         </div>
                     </div>
                 {% endif %}
             </div>
         </body>
         </html>
-    ''', result=result)
+    ''', result=result)         
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
