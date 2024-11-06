@@ -160,6 +160,10 @@ def index():
             --accent-color: #576574;
             --success-color: #27ae60;
             --error-color: #e74c3c;
+            --text-primary: #1a202c;
+            --text-secondary: #2d3748;
+            --text-light: #718096;
+            --text-dark: #2d3748;
         }
 
         body {
@@ -177,7 +181,7 @@ def index():
         .title {
             font-size: 3.5rem;
             font-weight: 800;
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             text-align: center;
@@ -186,7 +190,8 @@ def index():
         }
 
         .input-form {
-            background: white;
+            background: #2d3748;
+            bordere: 1px solid #4a5568;
             padding: 2rem;
             border-radius: 1rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
@@ -195,6 +200,9 @@ def index():
         }
 
         .input-field {
+            background: #1a202c;
+            border-color: #4a5568;
+            color: var(--text-primary);
             width: 100%;
             padding: 1rem;
             border: 2px solid #E5E7EB;
@@ -249,7 +257,8 @@ def index():
         }
 
         .result-box {
-            background: white;
+            background: #2d3748;
+            border: 1px solid #4a5568;
             border-radius: 1rem;
             padding: 2rem;
             margin-top: 2rem;
@@ -262,7 +271,7 @@ def index():
         }
 
         .result-item {
-            background: #F3F4F6;
+            background: #1a202c;
             border-radius: 0.75rem;
             padding: 1.5rem;
             margin-bottom: 1.5rem;
@@ -275,7 +284,8 @@ def index():
         }
 
         .result-label {
-            color: var(--primary-color);
+            backgroung: #2d3748;
+            color: #1a202c;
             font-weight: 600;
             margin-bottom: 0.5rem;
             font-size: 1.1rem;
@@ -283,7 +293,8 @@ def index():
 
         .result-value {
             font-family: 'Courier New', monospace;
-            background: white;
+            background: #4a5568;
+            color: var(--text-primary);
             padding: 1rem;
             border-radius: 0.5rem;
             word-break: break-all;
@@ -291,6 +302,7 @@ def index():
         }
 
         .sequence-validator {
+            color: var(--text-secondary);s
             display: flex;
             align-items: center;
             gap: 0.5rem;
@@ -328,33 +340,88 @@ def index():
             }
         }
 
-        /* Dark Mode */
+        /* Dark Mode Improvements */
         @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f7fafc;
+                --text-secondary: #e2e8f0;
+                --text-light: #cbd5e0;
+            }
+
             body {
-                background: linear-gradient(135deg, #1F2937 0%, #111827 100%);
-                color: #F3F4F6;
+                background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+                color: var(--text-primary);
+            }
+
+            .title {
+                /* Lighter gradient for dark mode */
+                background: linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
             }
 
             .input-form, .result-box {
-                background: #374151;
+                background: #2d3748;
+                border: 1px solid #4a5568;
             }
 
             .input-field {
-                background: #1F2937;
-                border-color: #4B5563;
-                color: #F3F4F6;
+                background: #1a202c;
+                border-color: #4a5568;
+                color: var(--text-primary);
             }
 
             .result-item {
-                background: #1F2937;
+                background: #1a202c;
+            }
+
+            .result-label {
+                color: #e2e8f0;  /* Lighter color for dark mode */
             }
 
             .result-value {
-                background: #374151;
-                border-color: #4B5563;
-                color: #F3F4F6;
+                background: #2d3748;
+                border-color: #4a5568;
+                color: var(--text-primary);
+            }
+
+            /* Footer links in dark mode */
+            footer a {
+                color: #90cdf4 !important;  /* Lighter blue for better visibility */
+            }
+
+            footer a:hover {
+                color: #63b3ed !important;
+            }
+
+            /* Validator text colors for dark mode */
+            .sequence-validator {
+                color: var(--text-light);
+            }
+
+            .validator-text.valid {
+                color: #68d391 !important;  /* Lighter green for dark mode */
+            }
+
+            .validator-text.invalid {
+                color: #fc8181 !important;  /* Lighter red for dark mode */
             }
         }
+
+        /* Error message improvements */
+        .bg-red-100 {
+            background-color: #fff5f5;
+            color: #c53030;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .bg-red-100 {
+                background-color: #742a2a;
+                color: #feb2b2;
+                border-color: #fc8181;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -446,8 +513,8 @@ def index():
         </div>
         {% endif %}
 
-        <footer class="mt-8 text-center text-white-600">
-            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="text-white-800 hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
+        <footer class="mt-8 text-center">
+            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
             <p>
                 <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-white-800 hover:text-white-900 dark:text-white-400" target="_blank">
                     <i class="fab fa-github"></i>
