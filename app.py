@@ -89,8 +89,8 @@ class BioDatabaseIntegrator:
 
 # Initialize the database integrator
 bio_integrator = BioDatabaseIntegrator(
-    email="your.email@example.com",
-    api_key=os.getenv('NCBI_API_KEY')
+    email="k.hading@slmail.me",
+    api_key=os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
 )
 
 gencode = {
