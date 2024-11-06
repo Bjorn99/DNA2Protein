@@ -109,9 +109,40 @@ def analyze_dna(dna):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
+    error = None
     if request.method == "POST":
-        dna_sequence = request.form['dna_sequence']
-        result = analyze_dna(dna_sequence)
+        try:
+            # Check if form data exists
+            if 'dna_sequence' not in request.form:
+                raise ValueError("No DNA sequence provided")
+                
+            # Get and sanitize input
+            dna_sequence = request.form['dna_sequence'].strip()
+            
+            # Validate input length
+            if not dna_sequence:
+                raise ValueError("DNA sequence cannot be empty")
+            
+            # if len(dna_sequence) > 10000:  # Adjust limit as needed
+            #     raise ValueError("DNA sequence is too long (maximum 10000 bases)")
+                
+            # Add basic XSS protection
+            dna_sequence = re.sub(r'[<>]', '', dna_sequence)
+            
+            # Process the sequence
+            result = analyze_dna(dna_sequence)
+            
+            # Handle analysis errors
+            if 'error' in result:
+                error = result['error']
+                result = None
+                
+        except ValueError as e:
+            error = str(e)
+        except Exception as e:
+            error = "An unexpected error occurred. Please try again."
+            # Log the actual error for debugging
+            app.logger.error(f"Error processing DNA sequence: {str(e)}")
 
     return render_template_string('''   
         <!doctype html>
@@ -353,6 +384,13 @@ def index():
                 </button>
             </form>
         </div>
+
+        {% if error %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong class="font-bold">Error: </strong>
+            <span class="block sm:inline">{{ error }}</span>
+        </div>
+        {% endif %}
 
         {% if result %}
         <div class="result-box">
