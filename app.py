@@ -291,6 +291,10 @@ def index():
             font-size: 1.1rem;
         }
 
+        .result-label:hover {
+            color: black;
+        }
+
         .result-value {
             font-family: 'Courier New', monospace;
             background: #4a5568;
@@ -391,7 +395,7 @@ def index():
             }
 
             footer a:hover {
-                color: #63b3ed !important;
+                color: green !important;
             }
 
             /* Validator text colors for dark mode */
