@@ -20,139 +20,207 @@ app = Flask(__name__)
 # Configure the application with environment variables
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
-app.config['API_KEY'] = os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
+app.config['API_KEY'] = os.getenv('API_KEY', '83469fae42ffbc3846e3adbc8bc02fb09609')
 
 # NCBI access
-Entrez.api_key = os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
+Entrez.api_key = app.config('API_KEY')
 
+class DNAValidator:
+    """Validates DNA sequences and provides basic DNA operations."""
+    
+    @staticmethod
+    def validate_sequence(sequence: str) -> bool:
+        """
+        Validate if the sequence contains only valid DNA nucleotides.
+        """
+        valid_nucleotides = set('ATCG')
+        return all(nucleotide in valid_nucleotides for nucleotide in sequence.upper())
 
-# gencode = {
-#     'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
-#     'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
-#     'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
-#     'AGC':'S', 'AGT':'S', 'AGA':'R', 'AGG':'R',
-#     'CTA':'L', 'CTC':'L', 'CTG':'L', 'CTT':'L',
-#     'CCA':'P', 'CCC':'P', 'CCG':'P', 'CCT':'P',
-#     'CAC':'H', 'CAT':'H', 'CAA':'Q', 'CAG':'Q',
-#     'CGA':'R', 'CGC':'R', 'CGG':'R', 'CGT':'R',
-#     'GTA':'V', 'GTC':'V', 'GTG':'V', 'GTT':'V',
-#     'GCA':'A', 'GCC':'A', 'GCG':'A', 'GCT':'A',
-#     'GAC':'D', 'GAT':'D', 'GAA':'E', 'GAG':'E',
-#     'GGA':'G', 'GGC':'G', 'GGG':'G', 'GGT':'G',
-#     'TCA':'S', 'TCC':'S', 'TCG':'S', 'TCT':'S',
-#     'TTC':'F', 'TTT':'F', 'TTA':'L', 'TTG':'L',
-#     'TAC':'Y', 'TAT':'Y', 'TAA':'*', 'TAG':'*',
-#     'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'
-# }
+    @staticmethod
+    def clean_sequence(sequence: str) -> str:
+        """
+        Clean and standardize DNA sequence.
+        """
+        return ''.join(sequence.split()).upper()
 
-# Complete genetic code dictionary with codon usage frequencies in E. coli
-gencode = {
-    # Isoleucine (I)
-    'ATA': {'aa': 'I', 'freq': 0.07},
-    'ATC': {'aa': 'I', 'freq': 0.48},
-    'ATT': {'aa': 'I', 'freq': 0.45},
+    @staticmethod
+    def check_sequence_quality(sequence: str) -> tuple[bool, str]:
+        """
+        Check sequence quality and return validation status and message.
+        """
+        if not sequence:
+            return False, "Empty sequence provided"
+        if len(sequence) < 3:
+            return False, "Sequence too short (minimum 3 nucleotides required)"
+        if len(set(sequence)) == 1:
+            return False, "Sequence consists of a single repeated nucleotide"
+        return True, "Sequence valid"
+
+class GeneticCode:
+    """Manages genetic code and codon frequencies."""
     
-    # Methionine (M) - Start codon
-    'ATG': {'aa': 'M', 'freq': 1.00},
+    def __init__(self):
+        self.code = self._initialize_genetic_code()
+        
+    def _initialize_genetic_code(self) -> Dict:
+        # Complete genetic code dictionary with codon usage frequencies in E. coli
+        gencode = {
+            # Isoleucine (I)
+            'ATA': {'aa': 'I', 'freq': 0.07},
+            'ATC': {'aa': 'I', 'freq': 0.48},
+            'ATT': {'aa': 'I', 'freq': 0.45},
+            
+            # Methionine (M) - Start codon
+            'ATG': {'aa': 'M', 'freq': 1.00},
+            
+            # Threonine (T)
+            'ACA': {'aa': 'T', 'freq': 0.13},
+            'ACC': {'aa': 'T', 'freq': 0.44},
+            'ACG': {'aa': 'T', 'freq': 0.14},
+            'ACT': {'aa': 'T', 'freq': 0.29},
+            
+            # Asparagine (N)
+            'AAC': {'aa': 'N', 'freq': 0.51},
+            'AAT': {'aa': 'N', 'freq': 0.49},
+            
+            # Lysine (K)
+            'AAA': {'aa': 'K', 'freq': 0.74},
+            'AAG': {'aa': 'K', 'freq': 0.26},
+            
+            # Serine (S)
+            'AGC': {'aa': 'S', 'freq': 0.28},
+            'AGT': {'aa': 'S', 'freq': 0.15},
+            'TCA': {'aa': 'S', 'freq': 0.12},
+            'TCC': {'aa': 'S', 'freq': 0.17},
+            'TCG': {'aa': 'S', 'freq': 0.14},
+            'TCT': {'aa': 'S', 'freq': 0.14},
+            
+            # Arginine (R)
+            'AGA': {'aa': 'R', 'freq': 0.04},
+            'AGG': {'aa': 'R', 'freq': 0.02},
+            'CGA': {'aa': 'R', 'freq': 0.06},
+            'CGC': {'aa': 'R', 'freq': 0.40},
+            'CGG': {'aa': 'R', 'freq': 0.10},
+            'CGT': {'aa': 'R', 'freq': 0.38},
+            
+            # Leucine (L)
+            'CTA': {'aa': 'L', 'freq': 0.04},
+            'CTC': {'aa': 'L', 'freq': 0.10},
+            'CTG': {'aa': 'L', 'freq': 0.50},
+            'CTT': {'aa': 'L', 'freq': 0.10},
+            'TTA': {'aa': 'L', 'freq': 0.13},
+            'TTG': {'aa': 'L', 'freq': 0.13},
+            
+            # Proline (P)
+            'CCA': {'aa': 'P', 'freq': 0.19},
+            'CCC': {'aa': 'P', 'freq': 0.12},
+            'CCG': {'aa': 'P', 'freq': 0.52},
+            'CCT': {'aa': 'P', 'freq': 0.17},
+            
+            # Histidine (H)
+            'CAC': {'aa': 'H', 'freq': 0.43},
+            'CAT': {'aa': 'H', 'freq': 0.57},
+            
+            # Glutamine (Q)
+            'CAA': {'aa': 'Q', 'freq': 0.34},
+            'CAG': {'aa': 'Q', 'freq': 0.66},
+            
+            # Valine (V)
+            'GTA': {'aa': 'V', 'freq': 0.15},
+            'GTC': {'aa': 'V', 'freq': 0.22},
+            'GTG': {'aa': 'V', 'freq': 0.37},
+            'GTT': {'aa': 'V', 'freq': 0.26},
+            
+            # Alanine (A)
+            'GCA': {'aa': 'A', 'freq': 0.21},
+            'GCC': {'aa': 'A', 'freq': 0.27},
+            'GCG': {'aa': 'A', 'freq': 0.36},
+            'GCT': {'aa': 'A', 'freq': 0.16},
+            
+            # Aspartic Acid (D)
+            'GAC': {'aa': 'D', 'freq': 0.37},
+            'GAT': {'aa': 'D', 'freq': 0.63},
+            
+            # Glutamic Acid (E)
+            'GAA': {'aa': 'E', 'freq': 0.68},
+            'GAG': {'aa': 'E', 'freq': 0.32},
+            
+            # Glycine (G)
+            'GGA': {'aa': 'G', 'freq': 0.11},
+            'GGC': {'aa': 'G', 'freq': 0.41},
+            'GGG': {'aa': 'G', 'freq': 0.15},
+            'GGT': {'aa': 'G', 'freq': 0.33},
+            
+            # Phenylalanine (F)
+            'TTC': {'aa': 'F', 'freq': 0.42},
+            'TTT': {'aa': 'F', 'freq': 0.58},
+            
+            # Tyrosine (Y)
+            'TAC': {'aa': 'Y', 'freq': 0.41},
+            'TAT': {'aa': 'Y', 'freq': 0.59},
+            
+            # Cysteine (C)
+            'TGC': {'aa': 'C', 'freq': 0.56},
+            'TGT': {'aa': 'C', 'freq': 0.44},
+            
+            # Tryptophan (W)
+            'TGG': {'aa': 'W', 'freq': 1.00},
+            
+            # Stop codons
+            'TAA': {'aa': '*', 'freq': 0.64},
+            'TAG': {'aa': '*', 'freq': 0.07},
+            'TGA': {'aa': '*', 'freq': 0.29}
+        }
+
+        return gencode
+     def get_amino_acid(self, codon: str) -> str:
+        """Get amino acid for a given codon."""
+        return self.code.get(codon, {}).get('aa', 'X')
     
-    # Threonine (T)
-    'ACA': {'aa': 'T', 'freq': 0.13},
-    'ACC': {'aa': 'T', 'freq': 0.44},
-    'ACG': {'aa': 'T', 'freq': 0.14},
-    'ACT': {'aa': 'T', 'freq': 0.29},
+    def get_frequency(self, codon: str) -> float:
+        """Get usage frequency for a given codon."""
+        return self.code.get(codon, {}).get('freq', 0.0)
+
+class SequenceAnalyzer:
+    """Analyzes DNA sequences for various features."""
     
-    # Asparagine (N)
-    'AAC': {'aa': 'N', 'freq': 0.51},
-    'AAT': {'aa': 'N', 'freq': 0.49},
+    def __init__(self):
+        self.genetic_code = GeneticCode()
+        self.validator = DNAValidator()
+        self.kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
+        
+    def find_orfs(self, sequence: str) -> List[str]:
+        """Find all open reading frames in the sequence."""
+        pattern = re.compile(r'(?=(ATG(?:...)*?(?:TAA|TAG|TGA)))')
+        return pattern.findall(sequence)
     
-    # Lysine (K)
-    'AAA': {'aa': 'K', 'freq': 0.74},
-    'AAG': {'aa': 'K', 'freq': 0.26},
-    
-    # Serine (S)
-    'AGC': {'aa': 'S', 'freq': 0.28},
-    'AGT': {'aa': 'S', 'freq': 0.15},
-    'TCA': {'aa': 'S', 'freq': 0.12},
-    'TCC': {'aa': 'S', 'freq': 0.17},
-    'TCG': {'aa': 'S', 'freq': 0.14},
-    'TCT': {'aa': 'S', 'freq': 0.14},
-    
-    # Arginine (R)
-    'AGA': {'aa': 'R', 'freq': 0.04},
-    'AGG': {'aa': 'R', 'freq': 0.02},
-    'CGA': {'aa': 'R', 'freq': 0.06},
-    'CGC': {'aa': 'R', 'freq': 0.40},
-    'CGG': {'aa': 'R', 'freq': 0.10},
-    'CGT': {'aa': 'R', 'freq': 0.38},
-    
-    # Leucine (L)
-    'CTA': {'aa': 'L', 'freq': 0.04},
-    'CTC': {'aa': 'L', 'freq': 0.10},
-    'CTG': {'aa': 'L', 'freq': 0.50},
-    'CTT': {'aa': 'L', 'freq': 0.10},
-    'TTA': {'aa': 'L', 'freq': 0.13},
-    'TTG': {'aa': 'L', 'freq': 0.13},
-    
-    # Proline (P)
-    'CCA': {'aa': 'P', 'freq': 0.19},
-    'CCC': {'aa': 'P', 'freq': 0.12},
-    'CCG': {'aa': 'P', 'freq': 0.52},
-    'CCT': {'aa': 'P', 'freq': 0.17},
-    
-    # Histidine (H)
-    'CAC': {'aa': 'H', 'freq': 0.43},
-    'CAT': {'aa': 'H', 'freq': 0.57},
-    
-    # Glutamine (Q)
-    'CAA': {'aa': 'Q', 'freq': 0.34},
-    'CAG': {'aa': 'Q', 'freq': 0.66},
-    
-    # Valine (V)
-    'GTA': {'aa': 'V', 'freq': 0.15},
-    'GTC': {'aa': 'V', 'freq': 0.22},
-    'GTG': {'aa': 'V', 'freq': 0.37},
-    'GTT': {'aa': 'V', 'freq': 0.26},
-    
-    # Alanine (A)
-    'GCA': {'aa': 'A', 'freq': 0.21},
-    'GCC': {'aa': 'A', 'freq': 0.27},
-    'GCG': {'aa': 'A', 'freq': 0.36},
-    'GCT': {'aa': 'A', 'freq': 0.16},
-    
-    # Aspartic Acid (D)
-    'GAC': {'aa': 'D', 'freq': 0.37},
-    'GAT': {'aa': 'D', 'freq': 0.63},
-    
-    # Glutamic Acid (E)
-    'GAA': {'aa': 'E', 'freq': 0.68},
-    'GAG': {'aa': 'E', 'freq': 0.32},
-    
-    # Glycine (G)
-    'GGA': {'aa': 'G', 'freq': 0.11},
-    'GGC': {'aa': 'G', 'freq': 0.41},
-    'GGG': {'aa': 'G', 'freq': 0.15},
-    'GGT': {'aa': 'G', 'freq': 0.33},
-    
-    # Phenylalanine (F)
-    'TTC': {'aa': 'F', 'freq': 0.42},
-    'TTT': {'aa': 'F', 'freq': 0.58},
-    
-    # Tyrosine (Y)
-    'TAC': {'aa': 'Y', 'freq': 0.41},
-    'TAT': {'aa': 'Y', 'freq': 0.59},
-    
-    # Cysteine (C)
-    'TGC': {'aa': 'C', 'freq': 0.56},
-    'TGT': {'aa': 'C', 'freq': 0.44},
-    
-    # Tryptophan (W)
-    'TGG': {'aa': 'W', 'freq': 1.00},
-    
-    # Stop codons
-    'TAA': {'aa': '*', 'freq': 0.64},
-    'TAG': {'aa': '*', 'freq': 0.07},
-    'TGA': {'aa': '*', 'freq': 0.29}
-}
+    def translate_dna(self, sequence: str) -> str:
+        """Translate DNA sequence to protein."""
+        protein = []
+        for i in range(0, len(sequence) - 2, 3):
+            codon = sequence[i:i+3]
+            if codon in {'TAA', 'TAG', 'TGA'}:
+                break
+            amino_acid = self.genetic_code.get_amino_acid(codon)
+            protein.append(amino_acid)
+        return ''.join(protein)
+
+    def find_kozak_sequences(self, sequence: str) -> List[int]:
+        """Find Kozak consensus sequences."""
+        return [match.start() for match in self.kozak_regex.finditer(sequence)]
+
+    def calculate_cai(self, sequence: str) -> float:
+        """Calculate Codon Adaptation Index."""
+        codons = [sequence[i:i+3] for i in range(0, len(sequence) - 2, 3)]
+        if not codons:
+            return 0.0
+        
+        frequencies = [self.genetic_code.get_frequency(codon) for codon in codons if codon in self.genetic_code.code]
+        if not frequencies:
+            return 0.0
+            
+        return sum(frequencies) / len(frequencies)
+
 
 class SignalPeptidePredictor:
     def __init__(self):
@@ -187,12 +255,28 @@ class SignalPeptidePredictor:
             # Return the basic model if the trained model is not available
             return RandomForestClassifier(n_estimators=100)
 
-    def _extract_features(self, sequence):
-        # Extract sequence features for ML model
+    def predict(self, sequence: str) -> Dict:
+        """Predict signal peptide presence and characteristics."""
+        if len(sequence) < 30:
+            return {"error": "Sequence too short for signal peptide prediction"}
+            
+        features = self._extract_features(sequence[:30])
+        prediction = self.model.predict_proba(features)[0]
+        
+        return {
+            'is_signal_peptide': bool(prediction.argmax()),
+            'confidence': float(max(prediction) * 100),
+            'details': {
+                'hydrophobicity_profile': self._calculate_hydrophobicity_profile(sequence[:30]),
+                'charge_distribution': self._calculate_charge_distribution(sequence[:30])
+            }
+        }
+
+    def _extract_features(self, sequence: str) -> np.ndarray:
+        """Extract sequence features for prediction."""
         features = []
         window_size = 20
 
-        # Sliding window analysis
         for i in range(len(sequence) - window_size + 1):
             window = sequence[i:i + window_size]
             hydrophobicity = sum(self.amino_acid_properties[aa]['hydrophobicity'] for aa in window)
@@ -202,170 +286,60 @@ class SignalPeptidePredictor:
             
         return np.array(features).reshape(1, -1)
 
-    def predict(self, sequence):
-        if len(sequence) < 30:
-            return "Sequence too short for signal peptide prediction"
-            
-        features = self._extract_features(sequence[:30])
-        prediction = self.model.predict_proba(features)[0]
-        
-        confidence = max(prediction) * 100
-        is_signal = bool(prediction.argmax())
-
-        return {
-            'is_signal_peptide': is_signal,
-            'confidence': confidence,
-            'details': {
-                'hydrophobicity_profile': self._calculate_hydrophobicity_profile(sequence[:30]),
-                'charge_distribution': self._calculate_charge_distribution(sequence[:30])
-            }
-        }
-
-    def _calculate_hydrophobicity_profile(self, sequence):
-        return [self.amino_acid_properties[aa]['hydrophobicity'] for aa in sequence]
-
-    def _calculate_charge_distribution(self, sequence):
-        return [self.amino_acid_properties[aa]['charge'] for aa in sequence]
-
-class BiologicalDatabaseIntegrator:
-    def __init__(self):
-        self.uniprot_api = "https://rest.uniprot.org/uniprotkb"
-        self.pfam_api = "https://pfam.xfam.org/search/sequence"
-
-    async def fetch_similar_sequences(self, sequence):
-        try:
-            # BLAST search through NCBI
-            result_handle = NCBIWWW.qblast("blastp", "nr", sequence)
-            blast_records = BLAST.parse(result_handle)
-            return [record for record in blast_records]
-        except Exception as e:
-            return f"Error in BLAST search: {str(e)}"
-
-    async def get_protein_domains(self, sequence):
-        try:
-            response = requests.post(self.pfam_api, data={'seq': sequence})
-            return response.json()
-        except Exception as e:
-            return f"Error in Pfam search: {str(e)}"
-
-def analyze_dna(dna, include_extended_analysis=False):
-    """Enhanced DNA sequence analysis function"""
-    dna = ''.join(dna.split()).upper()
+def analyze_dna(dna_sequence: str, include_extended: bool = False) -> Dict:
+    """Main function to analyze DNA sequence."""
     
-    if not validate_dna(dna):
+    analyzer = SequenceAnalyzer()
+    validator = DNAValidator()
+    
+    # Clean and validate sequence
+    sequence = validator.clean_sequence(dna_sequence)
+    is_valid, message = validator.check_sequence_quality(sequence)
+    
+    if not is_valid:
+        return {"error": message}
+    
+    if not validator.validate_sequence(sequence):
         return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
-    
+        
     try:
-        # Basic analysis
-        orfs = find_orfs(dna)
+        # Find ORFs
+        orfs = analyzer.find_orfs(sequence)
         if not orfs:
             return {"error": "No open reading frames found."}
-        
+            
+        # Get longest ORF and translate
         longest_orf = max(orfs, key=len)
-        protein = translate_dna(longest_orf)
+        protein = analyzer.translate_dna(longest_orf)
         
-        # Enhanced analysis
-        signal_peptide_predictor = SignalPeptidePredictor()
-        signal_peptide_analysis = signal_peptide_predictor.predict(protein)
-        
-        # Calculate additional metrics
-        gc_content = GC(dna)
-        mol_weight = molecular_weight(dna)
-        
+        # Basic analysis
         result = {
             "longest_orf": longest_orf,
             "protein": protein,
-            "kozak_positions": find_kozak_sequences(dna),
-            "cai": calculate_cai(longest_orf),
-            "signal_peptide": signal_peptide_analysis,
-            "gc_content": gc_content,
-            "molecular_weight": mol_weight,
+            "kozak_positions": analyzer.find_kozak_sequences(sequence),
+            "cai": analyzer.calculate_cai(longest_orf),
+            "gc_content": GC(sequence),
+            "molecular_weight": molecular_weight(sequence),
             "protein_length": len(protein)
         }
-
-        if include_extended_analysis:
+        
+        # Signal peptide analysis
+        signal_peptide_predictor = SignalPeptidePredictor()
+        result["signal_peptide"] = signal_peptide_predictor.predict(protein)
+        
+        # Extended analysis if requested
+        if include_extended:
             db_integrator = BiologicalDatabaseIntegrator()
             result.update({
-                "similar_sequences": await db_integrator.fetch_similar_sequences(protein),
-                "protein_domains": await db_integrator.get_protein_domains(protein)
+                "similar_sequences": db_integrator.fetch_similar_sequences(protein),
+                "protein_domains": db_integrator.get_protein_domains(protein)
             })
-        
+            
         return result
-
+        
     except Exception as e:
         return {"error": f"Analysis error: {str(e)}"}
 
-# # Kozak consensus sequence
-# kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
-
-# def validate_dna(dna):
-#     """Validate the DNA sequence."""
-#     valid_nucleotides = set('ATCG')
-#     return all(nucleotide in valid_nucleotides for nucleotide in dna)
-
-# def find_orfs(dna):
-#     """Find all open reading frames in the given DNA sequence."""
-#     if len(dna) < 3:
-#         return []   
-#     pattern = re.compile(r'(?=(ATG(?:...)*?(?:TAA|TAG|TGA)))')
-#     return pattern.findall(dna)
-
-# def translate_dna(dna):
-#     """Translate a DNA sequence to a protein sequence."""
-#     protein = []
-#     for i in range(0, len(dna) - 2, 3):
-#         codon = dna[i:i+3]
-#         if codon in {'TAA', 'TAG', 'TGA'}:
-#             break
-#         amino_acid = gencode.get(codon, 'X')  # 'X' for unknown codons
-#         protein.append(amino_acid)
-#     return ''.join(protein)
-
-# def find_kozak_sequences(dna):
-#     """Find Kozak consensus sequences in the DNA."""
-#     return [match.start() for match in kozak_regex.finditer(dna)]
-
-# def calculate_cai(dna):
-#     """Calculate the Codon Adaptation Index (CAI) for a DNA sequence."""
-#     codon_counts = Counter(dna[i:i+3] for i in range(0, len(dna) - 2, 3))
-#     total_codons = sum(codon_counts.values())
-#     return sum(count / total_codons * len(gencode[codon]) for codon, count in codon_counts.items() if codon in gencode) / (len(dna) // 3)
-
-# def predict_signal_peptide(protein):
-#     """Simple prediction of signal peptide presence based on N-terminal sequence."""
-#     n_terminal = protein[:30]  # Consider first 30 amino acids
-#     if n_terminal.count('L') + n_terminal.count('A') + n_terminal.count('V') > 10:
-#         return "Potential signal peptide detected"
-#     return "No signal peptide detected"
-
-# def analyze_dna(dna):
-#     """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
-#     dna = ''.join(dna.split()).upper()
-    
-#     if not validate_dna(dna):
-#         return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
-    
-#     """Check for continuous strings of one nucleotide"""
-#     if len(set(dna)) == 1:
-#         return {"error": "DNA sequence consists of a single nucleotide repeated."}
-    
-#     orfs = find_orfs(dna)
-#     if not orfs:
-#         return {"error": "No open reading frames found."}
-    
-#     longest_orf = max(orfs, key=len)
-#     protein = translate_dna(longest_orf)
-#     kozak_positions = find_kozak_sequences(dna)
-#     cai = calculate_cai(longest_orf)
-#     signal_peptide = predict_signal_peptide(protein)
-    
-#     return {
-#         "longest_orf": longest_orf,
-#         "protein": protein,
-#         "kozak_positions": kozak_positions,
-#         "cai": cai,
-#         "signal_peptide": signal_peptide
-#     }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -709,57 +683,103 @@ def index():
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
                 gap: 1.5rem;
                 margin-top: 2rem;
-            }
+                }
             
-            .feature-card {
-                background: white;
-                border-radius: 12px;
-                padding: 1.5rem;
-                box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                transition: transform 0.3s ease;
-            }
-            
-            .feature-card:hover {
-                transform: translateY(-5px);
-            }
-            
-            .visualization {
-                width: 100%;
-                height: 400px;
-                margin-top: 2rem;
-            }
-            
-            .loading-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(255, 255, 255, 0.9);
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                z-index: 1000;
-            }
-            
-            .loading-spinner {
-                border: 4px solid #f3f3f3;
-                border-top: 4px solid #3498db;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                animation: spin 1s linear infinite;
-            }
-            
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
+                .feature-card {
+                    background: white;
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+                    transition: transform 0.3s ease;
+                }
+                
+                .feature-card:hover {
+                    transform: translateY(-5px);
+                }
+                
+                .visualization {
+                    width: 100%;
+                    height: 400px;
+                    margin-top: 2rem;
+                }
+                
+                .loading-overlay {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(255, 255, 255, 0.9);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1000;
+                }
+                
+                .loading-spinner {
+                    border: 4px solid #f3f3f3;
+                    border-top: 4px solid #3498db;
+                    border-radius: 50%;
+                    width: 50px;
+                    height: 50px;
+                    animation: spin 1s linear infinite;
+                }
+                
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
             </style>
+            <!-- Add styles for new elements -->
+<style>
+    .feature-card {
+        @apply bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-transform duration-300;
+    }
+    
+    .copy-button {
+        @apply p-1 rounded hover:bg-blue-100 transition-colors duration-200;
+    }
+    
+    .hidden {
+        display: none;
+    }
+    
+    /* Fix loading overlay positioning */
+    .loading-overlay {
+        @apply fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50;
+    }
+    
+    /* Add responsive adjustments */
+    @media (max-width: 640px) {
+        .feature-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .result-value {
+            font-size: 0.8rem;
+        }
+    }
+</style>
+
         </head>
         <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
             <div class="container">
                 <h1 class="title">DNA2Protein</h1>
+                <div class="feature-grid">
+                    <!-- Feature cards for different analysis types -->
+                    <div class="feature-card">
+                        <h3 class="text-xl font-bold text-blue-600 mb-2">ORF Analysis</h3>
+                        <p class="text-gray-600">Identifies open reading frames in DNA sequences</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3 class="text-xl font-bold text-blue-600 mb-2">Protein Translation</h3>
+                        <p class="text-gray-600">Translates DNA to amino acid sequences</p>
+                    </div>
+                    <div class="feature-card">
+                        <h3 class="text-xl font-bold text-blue-600 mb-2">Signal Peptide Analysis</h3>
+                        <p class="text-gray-600">Predicts presence of signal peptides</p>
+                    </div>
+                </div>
                 <form method="post" class="input-form">
                     <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
                     <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field" placeholder="e.g., ATGCGATCGATCG"     >
@@ -767,6 +787,19 @@ def index():
                             <i class="fas fa-dna mr-2"></i> Analyze DNA
                     </button>
                 </form>
+
+                <!-- Add loading indicator -->
+                <div id="loading-overlay" class="loading-overlay hidden">
+                    <div class="loading-spinner"></div>
+                </div>
+
+                <!-- Add visualization container -->
+                <div id="visualization" class="visualization hidden">
+                    <!-- Plotly chart will be rendered here -->
+                </div>
+
+                <!-- Add error handling for form -->
+                <div id="error-container" class="error-message hidden"></div>
                 
                 {% if result %}
                     <div class="result-box">
@@ -800,6 +833,17 @@ def index():
                                 <div class="result-label">Signal Peptide Prediction:</div>
                                 <div class="result-value">{{ result.signal_peptide }}</div>
                             </div>
+                            <div class="result-item">
+    <div class="result-label flex justify-between items-center">
+        <span>Translated Protein:</span>
+        <button onclick="copyToClipboard('protein-sequence')" 
+                class="copy-button text-sm text-blue-500 hover:text-blue-700">
+            <i class="fas fa-copy"></i> Copy
+        </button>
+    </div>
+    <div id="protein-sequence" class="result-value">{{ result.protein }}</div>
+</div>
+
                         {% endif %}
 
                         <div class="footer">
@@ -810,6 +854,26 @@ def index():
                 {% endif %}
             </div>
         </body>
+        <script>
+function copyToClipboard(elementId) {
+    const element = document.getElementById(elementId);
+    const text = element.textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        // Show success message
+        const button = element.previousElementSibling.querySelector('.copy-button');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        setTimeout(() => {
+            button.innerHTML = originalText;
+        }, 2000);
+    });
+}
+
+document.querySelector('form').addEventListener('submit', function() {
+    document.getElementById('loading-overlay').classList.remove('hidden');
+});
+</script>
+        
         </html>
     ''', result=result)         
 
