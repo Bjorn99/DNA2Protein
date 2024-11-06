@@ -350,531 +350,384 @@ def index():
         result = analyze_dna(dna_sequence, include_extended)
 
     return render_template_string('''   
-        <!doctype html>
-        <html lang="en">
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>DNA2Protein</title>
-            <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-            <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-            <style>
-                body {
-                    background-color: #f0f4f8;
-                    color: #2d3748;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }
-                .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-                .title {
-                    color: #2b6cb0;
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                    text-align: center;
-                    margin-bottom: 2rem;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-                }
-                .input-form {
-                    background-color: white;
-                    padding: 2rem;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                }
-                .input-label {
-                    font-weight: bold;
-                    margin-bottom: 0.5rem;
-                    color: #4a5568;
-                    font-size: 1.1rem;
-                }
-                .input-field {
-                    width: 100%;
-                    padding: 0.75rem;
-                    border: 2px solid #cbd5e0;
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    transition: all 0.3s ease;
-                    margin-bottom: 1.5rem;
-                }
-                .input-field:focus {
-                    border-color: #4299e1;
-                    outline: none;
-                    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
-                }
-                .submit-button {
-                    position: relative;
-                    overflow: hidden;
-                    transition: all 0.3s ease;
-                    background-color: #4299e1;
-                    color: white;
-                    font-weight: bold;
-                    padding: 0.75rem 2rem;
-                    border-radius: 8px;
-                    font-size: 1.1rem;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                }
-                .submit-button:hover {
-                    background-color: #3182ce;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 6px rgba(66, 153, 225, 0.5);
-                }
-                .submit-button::before {
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    left: -50%;
-                    width: 200%;
-                    height: 200%;
-                    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
-                    transform: scale(0);
-                    transition: transform 0.6s ease-out;
-                }
-                .submit-button:hover::before {
-                    transform: scale(1);
-                }
-                .submit-button i {
-                    display: inline-block;
-                    margin-right: 0.5rem;
-                }
-                .submit-button:hover i {
-                    animation: dna-spin 2s linear infinite;
-                }
-                .submit-button:active {
-                    transform: translateY(0);
-                    animation: button-pulse 0.3s ease-out;
-                }
-                @keyframes dna-spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                @keyframes button-pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
-                }
-                .result-box {
-                    background-color: white;
-                    border-radius: 12px;
-                    padding: 1.5rem;
-                    margin-top: 2rem;
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-                    transition: all 0.3s ease;
-                }
-                .result-box:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-                }
-                .result-title {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: #2b6cb0;
-                    margin-bottom: 1rem;
-                    border-bottom: 2px solid #e2e8f0;
-                    padding-bottom: 0.5rem;
-                }
-                .result-item {
-                    margin-bottom: 1rem;
-                    transition: all 0.3s ease;
-                }
-                .result-item:hover {
-                    transform: translateX(5px);
-                }
-                .result-label {
-                    font-weight: bold;
-                    color: #4a5568;
-                    margin-bottom: 0.25rem;
-                }
-                .result-value {
-                    background-color: #edf2f7;
-                    padding: 0.75rem;
-                    border-radius: 8px;
-                    font-family: 'Courier New', Courier, monospace;
-                    word-break: break-all;
-                    font-size: 0.9rem;
-                    transition: all 0.3s ease;
-                }
-                .result-value:hover {
-                    background-color: #e2e8f0;
-                }
-                .error-message {
-                    color: #e53e3e;
-                    font-weight: bold;
-                    margin-top: 1rem;
-                    padding: 1rem;
-                    border-radius: 8px;
-                    background-color: #fff5f5;
-                    border: 1px solid #feb2b2;
-                }
-            </style><style>
-                body {
-                    background-color: #f0f4f8;
-                    color: #2d3748;
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                }
-                .container {
-                    max-width: 800px;
-                    margin: 0 auto;
-                    padding: 2rem;
-                }
-                .title {
-                    color: #2b6cb0;
-                    font-size: 2.5rem;
-                    font-weight: bold;
-                    text-align: center;
-                    margin-bottom: 2rem;
-                    text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-                }
-                .input-form {
-                    background-color: white;
-                    padding: 2rem;
-                    border-radius: 12px;
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                }
-                .input-label {
-                    font-weight: bold;
-                    margin-bottom: 0.5rem;
-                    color: #4a5568;
-                    font-size: 1.1rem;
-                }
-                .input-field {
-                    width: 100%;
-                    padding: 0.75rem;
-                    border: 2px solid #cbd5e0;
-                    border-radius: 8px;
-                    font-size: 1rem;
-                    transition: all 0.3s ease;
-                    margin-bottom: 1.5rem;
-                }
-                .input-field:focus {
-                    border-color: #4299e1;
-                    outline: none;
-                    box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
-                }
-                .submit-button {
-                    position: relative;
-                    overflow: hidden;
-                    transition: all 0.3s ease;
-                    background-color: #4299e1;
-                    color: white;
-                    font-weight: bold;
-                    padding: 0.75rem 2rem;
-                    border-radius: 8px;
-                    font-size: 1.1rem;
-                    text-transform: uppercase;
-                    letter-spacing: 0.05em;
-                }
-                .submit-button:hover {
-                    background-color: #3182ce;
-                    transform: translateY(-2px);
-                    box-shadow: 0 4px 6px rgba(66, 153, 225, 0.5);
-                }
-                .submit-button::before {
-                    content: '';
-                    position: absolute;
-                    top: -50%;
-                    left: -50%;
-                    width: 200%;
-                    height: 200%;
-                    background: radial-gradient(circle, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 70%);
-                    transform: scale(0);
-                    transition: transform 0.6s ease-out;
-                }
-                .submit-button:hover::before {
-                    transform: scale(1);
-                }
-                .submit-button i {
-                    display: inline-block;
-                    margin-right: 0.5rem;
-                }
-                .submit-button:hover i {
-                    animation: dna-spin 2s linear infinite;
-                }
-                .submit-button:active {
-                    transform: translateY(0);
-                    animation: button-pulse 0.3s ease-out;
-                }
-                @keyframes dna-spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                @keyframes button-pulse {
-                    0%, 100% { transform: scale(1); }
-                    50% { transform: scale(1.05); }
-                }
-                .result-box {
-                    background-color: white;
-                    border-radius: 12px;
-                    padding: 1.5rem;
-                    margin-top: 2rem;
-                    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-                    transition: all 0.3s ease;
-                }
-                .result-box:hover {
-                    transform: translateY(-5px);
-                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-                }
-                .result-title {
-                    font-size: 1.5rem;
-                    font-weight: bold;
-                    color: #2b6cb0;
-                    margin-bottom: 1rem;
-                    border-bottom: 2px solid #e2e8f0;
-                    padding-bottom: 0.5rem;
-                }
-                .result-item {
-                    margin-bottom: 1rem;
-                    transition: all 0.3s ease;
-                }
-                .result-item:hover {
-                    transform: translateX(5px);
-                }
-                .result-label {
-                    font-weight: bold;
-                    color: #4a5568;
-                    margin-bottom: 0.25rem;
-                }
-                .result-value {
-                    background-color: #edf2f7;
-                    padding: 0.75rem;
-                    border-radius: 8px;
-                    font-family: 'Courier New', Courier, monospace;
-                    word-break: break-all;
-                    font-size: 0.9rem;
-                    transition: all 0.3s ease;
-                }
-                .result-value:hover {
-                    background-color: #e2e8f0;
-                }
-                .error-message {
-                    color: #e53e3e;
-                    font-weight: bold;
-                    margin-top: 1rem;
-                    padding: 1rem;
-                    border-radius: 8px;
-                    background-color: #fff5f5;
-                    border: 1px solid #feb2b2;
-                }
-                .footer {
-                    margin-top: 2rem;
-                    text-align: center;
-                    font-size: 0.9rem;
-                    color: #4a5568;
-                }
-                .footer a {
-                    color: #4299e1;
-                    text-decoration: none;
-                    transition: color 0.3s ease;
-                }
-                .footer a:hover {
-                    color: #2b6cb0;
-                    text-decoration: underline;
-                }
-                .feature-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                gap: 1.5rem;
-                margin-top: 2rem;
-                }
-            
-                .feature-card {
-                    background: white;
-                    border-radius: 12px;
-                    padding: 1.5rem;
-                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                    transition: transform 0.3s ease;
-                }
-                
-                .feature-card:hover {
-                    transform: translateY(-5px);
-                }
-                
-                .visualization {
-                    width: 100%;
-                    height: 400px;
-                    margin-top: 2rem;
-                }
-                
-                .loading-overlay {
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(255, 255, 255, 0.9);
-                    display: flex;
-                    justify-content: center;
-                    align-items: center;
-                    z-index: 1000;
-                }
-                
-                .loading-spinner {
-                    border: 4px solid #f3f3f3;
-                    border-top: 4px solid #3498db;
-                    border-radius: 50%;
-                    width: 50px;
-                    height: 50px;
-                    animation: spin 1s linear infinite;
-                }
-                
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-            </style>
-            <!-- Add styles for new elements -->
-<style>
-    .feature-card {
-        @apply bg-white rounded-lg p-6 shadow-md hover:shadow-lg transition-transform duration-300;
-    }
+        <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>DNA2Protein - DNA Analysis Tool</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.24.2/plotly.min.js"></script>
     
-    .copy-button {
-        @apply p-1 rounded hover:bg-blue-100 transition-colors duration-200;
-    }
-    
-    .hidden {
-        display: none;
-    }
-    
-    /* Fix loading overlay positioning */
-    .loading-overlay {
-        @apply fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50;
-    }
-    
-    /* Add responsive adjustments */
-    @media (max-width: 640px) {
+    <style>
+        /* Base Styles */
+        body {
+            background: linear-gradient(135deg, #f0f4f8 0%, #e2e8f0 100%);
+            color: #2d3748;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* Title */
+        .title {
+            color: #2b6cb0;
+            font-size: 3rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 2rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+            letter-spacing: -0.025em;
+        }
+
+        /* Feature Grid */
         .feature-grid {
-            grid-template-columns: 1fr;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
-        
+
+        .feature-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Input Form */
+        .input-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .input-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #4a5568;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e2e8f0;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-field:focus {
+            border-color: #4299e1;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.5);
+            outline: none;
+        }
+
+        /* Submit Button */
+        .submit-button {
+            background-color: #4299e1;
+            color: white;
+            font-weight: 600;
+            padding: 0.75rem 2rem;
+            border-radius: 0.5rem;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .submit-button:hover {
+            background-color: #3182ce;
+            transform: translateY(-2px);
+        }
+
+        .submit-button:active {
+            transform: translateY(0);
+        }
+
+        /* Results Section */
+        .result-box {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2b6cb0;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .result-item {
+            margin-bottom: 1.5rem;
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #4a5568;
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
         .result-value {
-            font-size: 0.8rem;
+            background: #f7fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            line-height: 1.5;
         }
-    }
-</style>
 
-        </head>
-        <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-            <div class="container">
-                <h1 class="title">DNA2Protein</h1>
-                <div class="feature-grid">
-                    <!-- Feature cards for different analysis types -->
-                    <div class="feature-card">
-                        <h3 class="text-xl font-bold text-blue-600 mb-2">ORF Analysis</h3>
-                        <p class="text-gray-600">Identifies open reading frames in DNA sequences</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3 class="text-xl font-bold text-blue-600 mb-2">Protein Translation</h3>
-                        <p class="text-gray-600">Translates DNA to amino acid sequences</p>
-                    </div>
-                    <div class="feature-card">
-                        <h3 class="text-xl font-bold text-blue-600 mb-2">Signal Peptide Analysis</h3>
-                        <p class="text-gray-600">Predicts presence of signal peptides</p>
-                    </div>
-                </div>
-                <form method="post" class="input-form">
-                    <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
-                    <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field" placeholder="e.g., ATGCGATCGATCG"     >
-                    <button type="submit" class="submit-button bg-blue-400 hover:bg-green-600 text-white font-bold py-2 px-4 rounded transition duration-300 ease-in-out transform hover:-translate-y-1 hover:shadow-lg">
-                            <i class="fas fa-dna mr-2"></i> Analyze DNA
-                    </button>
-                </form>
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
 
-                <!-- Add loading indicator -->
-                <div id="loading-overlay" class="loading-overlay hidden">
-                    <div class="loading-spinner"></div>
-                </div>
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: #4299e1;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
 
-                <!-- Add visualization container -->
-                <div id="visualization" class="visualization hidden">
-                    <!-- Plotly chart will be rendered here -->
-                </div>
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
 
-                <!-- Add error handling for form -->
-                <div id="error-container" class="error-message hidden"></div>
-                
-                {% if result %}
-                    <div class="result-box">
-                        <h2 class="result-title">Analysis Result</h2>
-                        {% if result.error %}
-                            <div class="error-message">{{ result.error }}</div>
-                        {% else %}
-                            <div class="result-item">
-                                <div class="result-label">Longest Open Reading Frame (ORF):</div>
-                                <div class="result-value">{{ result.longest_orf }}</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Translated Protein:</div>
-                                <div class="result-value">{{ result.protein }}</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Kozak Sequence Positions:</div>
-                                <div class="result-value">
-                                    {% if result.kozak_positions %}
-                                        {{ result.kozak_positions|join(', ') }}
-                                    {% else %}
-                                        No Kozak sequences found
-                                    {% endif %}
-                                </div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Codon Adaptation Index (CAI):</div>
-                                <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
-                            </div>
-                            <div class="result-item">
-                                <div class="result-label">Signal Peptide Prediction:</div>
-                                <div class="result-value">{{ result.signal_peptide }}</div>
-                            </div>
-                            <div class="result-item">
-    <div class="result-label flex justify-between items-center">
-        <span>Translated Protein:</span>
-        <button onclick="copyToClipboard('protein-sequence')" 
-                class="copy-button text-sm text-blue-500 hover:text-blue-700">
-            <i class="fas fa-copy"></i> Copy
-        </button>
-    </div>
-    <div id="protein-sequence" class="result-value">{{ result.protein }}</div>
-</div>
+        /* Error Message */
+        .error-message {
+            background: #fff5f5;
+            color: #c53030;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #feb2b2;
+            margin-top: 1rem;
+        }
 
-                        {% endif %}
+        /* Footer */
+        .footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            color: #4a5568;
+        }
 
-                        <div class="footer">
-                            <p>Created by <a href="https://github.com/Bjorn99" target="_blank">Bjorn99</a></p>
-                            <p>Have issues or want to contribute? Visit the <a href="https://github.com/Bjorn99/DNA2Protein" target="_blank">GitHub repository</a>.</p>
-                        </div>
-                    </div>
-                {% endif %}
-            </div>
-        </body>
-        <script>
-function copyToClipboard(elementId) {
-    const element = document.getElementById(elementId);
-    const text = element.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-        // Show success message
-        const button = element.previousElementSibling.querySelector('.copy-button');
-        const originalText = button.innerHTML;
-        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
-        setTimeout(() => {
-            button.innerHTML = originalText;
-        }, 2000);
-    });
-}
+        .footer a {
+            color: #4299e1;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
 
-document.querySelector('form').addEventListener('submit', function() {
-    document.getElementById('loading-overlay').classList.remove('hidden');
-});
-</script>
+        .footer a:hover {
+            color: #2b6cb0;
+            text-decoration: underline;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 640px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .title {
+                font-size: 2rem;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .result-value {
+                font-size: 0.875rem;
+            }
+        }
+
+        /* Copy Button */
+        .copy-button {
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+            color: #4299e1;
+            transition: all 0.2s ease;
+        }
+
+        .copy-button:hover {
+            background-color: #ebf8ff;
+            color: #2b6cb0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">DNA2Protein</h1>
         
-        </html>
+        <!-- Feature Grid -->
+        <div class="feature-grid">
+            <div class="feature-card">
+                <h3 class="text-xl font-bold text-blue-600 mb-2">ORF Analysis</h3>
+                <p class="text-gray-600">Identifies open reading frames in DNA sequences and predicts protein coding regions</p>
+            </div>
+            <div class="feature-card">
+                <h3 class="text-xl font-bold text-blue-600 mb-2">Protein Translation</h3>
+                <p class="text-gray-600">Translates DNA sequences to amino acid sequences using standard genetic code</p>
+            </div>
+            <div class="feature-card">
+                <h3 class="text-xl font-bold text-blue-600 mb-2">Signal Peptide Analysis</h3>
+                <p class="text-gray-600">Predicts presence and characteristics of signal peptides in protein sequences</p>
+            </div>
+        </div>
+
+        <!-- Input Form -->
+        <form method="post" class="input-form">
+            <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
+            <textarea id="dna_sequence" name="dna_sequence" required class="input-field" 
+                      placeholder="e.g., ATGCGATCGATCG..." rows="4"></textarea>
+            <div class="flex items-center gap-4">
+                <button type="submit" class="submit-button">
+                    <i class="fas fa-dna"></i>
+                    Analyze DNA
+                </button>
+                <label class="flex items-center gap-2">
+                    <input type="checkbox" name="include_extended" class="form-checkbox h-4 w-4 text-blue-600">
+                    <span class="text-sm text-gray-600">Include extended analysis</span>
+                </label>
+            </div>
+        </form>
+
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="loading-overlay hidden">
+            <div class="loading-spinner"></div>
+        </div>
+
+        <!-- Results Section -->
+        {% if result %}
+        <div class="result-box">
+            <h2 class="result-title">Analysis Results</h2>
+            {% if result.error %}
+            <div class="error-message">{{ result.error }}</div>
+            {% else %}
+            <div class="result-item">
+                <div class="result-label">
+                    <span>Longest Open Reading Frame (ORF)</span>
+                    <button onclick="copyToClipboard('orf-sequence')" class="copy-button">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div id="orf-sequence" class="result-value">{{ result.longest_orf }}</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">
+                    <span>Translated Protein</span>
+                    <button onclick="copyToClipboard('protein-sequence')" class="copy-button">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div id="protein-sequence" class="result-value">{{ result.protein }}</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Codon Adaptation Index (CAI)</div>
+                <div class="result-value">{{ "%.3f"|format(result.cai) }}</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">GC Content</div>
+                <div class="result-value">{{ "%.1f"|format(result.gc_content) }}%</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Molecular Weight</div>
+                <div class="result-value">{{ "%.2f"|format(result.molecular_weight) }} Da</div>
+            </div>
+            <div class="result-item">
+                <div class="result-label">Signal Peptide Prediction</div>
+                <div class="result-value">
+                    <div>Probability: {{ "%.1f"|format(result.signal_peptide.confidence) }}%</div>
+                    <div>Prediction: {{ "Signal peptide detected" if result.signal_peptide.is_signal_peptide else "No signal peptide detected" }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Created by <a href="https://github.com/Bjorn99" target="_blank">Bjorn99</a></p>
+            <p>Have issues or want to contribute? Visit the <a href="https://github.com/Bjorn99/DNA2Protein" target="_blank">GitHub repository</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Copy to clipboard functionality
+        function copyToClipboard(elementId) {
+            const element = document.getElementById(elementId);
+            const text = element.textContent;
+            navigator.clipboard.writeText(text).then(() => {
+                const button = element.previousElementSibling.querySelector('.copy-button');
+                const originalHTML = button.innerHTML;
+                button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                }, 2000);
+            });
+        }
+
+        // Form submission handling
+        document.querySelector('form').addEventListener('submit', function() {
+            document.getElementById('loading-overlay').classList.remove('hidden');
+        });
+
+        // Initialize tooltips if using them
+        if (typeof tippy !== 'undefined') {
+            tippy('[data-tippy-content]');
+        }
+
+        // Optional: Add sequence validation
+        document.getElementById('dna_sequence').addEventListener('input', function(e) {
+            const sequence = e.target.value.toUpperCase();
+            const validNucleotides = new Set(['A', 'T', 'C', 'G']);
+            const isValid = [...sequence].every(char => 
+                validNucleotides.has(char) || char === ' ' || char === '\n'
+            );
+            
+            e.target.classList.toggle('border-red-500', !isValid);
+            const submitButton = document.querySelector('.submit-button');
+            submitButton.disabled = !isValid;
+            submitButton.classList.toggle('opacity-50', !isValid);
+        });
+    </script>
+</body>
+</html>
     ''', result=result)         
 
 if __name__ == '__main__':
