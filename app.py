@@ -14,11 +14,15 @@ load_dotenv()
 # Create a Flask application instance
 app = Flask(__name__)
 
-# After creating Flask app
-bio_integrator = BioDatabaseIntegrator(
-    email="k.hading@slmail.me",  # Required for NCBI services
-    api_key=os.getenv('NCBI_API_KEY', '83469fae42ffbc3846e3adbc8bc02fb09609')  # Optional but recommended
-)
+# Configure the application with environment variables
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
+app.config['NCBI_API_KEY'] = os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
+app.config['NCBI_EMAIL'] = os.getenv('NCBI_EMAIL', 'k.hading@slmail.me')
+
+# Configure Entrez
+Entrez.email = app.config['NCBI_EMAIL']
+if app.config['NCBI_API_KEY']:
+    Entrez.api_key = app.config['NCBI_API_KEY']
 
 # Configure the application with environment variables
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -46,6 +50,107 @@ gencode = {
 
 # Kozak consensus sequence
 kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
+
+class BioDatabaseIntegrator:
+    def __init__(self, email, api_key=None):
+        """Initialize the database integrator with necessary credentials."""
+        self.email = email
+        self.api_key = api_key
+        Entrez.email = email
+        if api_key:
+            Entrez.api_key = api_key
+        
+        # UniProt API base URL
+        self.uniprot_url = "https://rest.uniprot.org/uniprotkb/search"
+        
+    def fetch_uniprot_data(self, protein_sequence):
+        """
+        Search UniProt database for similar protein sequences.
+        Returns relevant protein information.
+        """
+        try:
+            # Construct the query
+            query_params = {
+                "query": f"sequence:{protein_sequence}",
+                "format": "json",
+                "size": 5  # Limit results to top 5 matches
+            }
+            
+            response = requests.get(self.uniprot_url, params=query_params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if not data.get("results"):
+                return {"message": "No UniProt matches found"}
+                
+            results = []
+            for entry in data["results"]:
+                result = {
+                    "entry_id": entry.get("primaryAccession", ""),
+                    "protein_name": entry.get("proteinDescription", {}).get("recommendedName", {}).get("fullName", {}).get("value", ""),
+                    "organism": entry.get("organism", {}).get("scientificName", ""),
+                    "function": entry.get("comments", [{}])[0].get("text", [{}])[0].get("value", "") if entry.get("comments") else ""
+                }
+                results.append(result)
+                
+            return results
+            
+        except Exception as e:
+            return {"error": f"UniProt API error: {str(e)}"}
+    
+    def fetch_genbank_data(self, dna_sequence):
+        """
+        Search GenBank database for similar DNA sequences.
+        Returns relevant sequence information.
+        """
+        try:
+            # Perform BLAST search to find similar sequences
+            result_handle = NCBIWWW.qblast("blastn", "nt", dna_sequence)
+            blast_records = result_handle.read()
+            
+            # Parse the results
+            results = []
+            for alignment in blast_records.alignments[:5]:  # Limit to top 5 matches
+                result = {
+                    "accession": alignment.accession,
+                    "title": alignment.title,
+                    "length": alignment.length,
+                    "e_value": alignment.hsps[0].expect,
+                    "identity": alignment.hsps[0].identities / alignment.hsps[0].align_length * 100
+                }
+                results.append(result)
+            
+            return results
+            
+        except Exception as e:
+            return {"error": f"GenBank API error: {str(e)}"}
+    
+    def blast_sequence(self, sequence):
+        """
+        Perform BLAST search for the given sequence.
+        Returns BLAST results.
+        """
+        try:
+            result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
+            blast_records = result_handle.read()
+            
+            results = []
+            for alignment in blast_records.alignments[:5]:
+                hsp = alignment.hsps[0]  # Get the highest scoring pair
+                result = {
+                    "title": alignment.title,
+                    "length": alignment.length,
+                    "e_value": hsp.expect,
+                    "score": hsp.score,
+                    "identity_percentage": (hsp.identities / hsp.align_length) * 100
+                }
+                results.append(result)
+            
+            return results
+            
+        except Exception as e:
+            return {"error": f"BLAST error: {str(e)}"}
 
 def validate_dna(dna):
     """Validate the DNA sequence."""
@@ -306,6 +411,56 @@ def index():
             background-color: var(--error-color);
         }
 
+        .database-entry {
+        background: #f8fafc;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        border: 1px solid #e2e8f0;
+        transition: all 0.2s ease;
+    }
+
+    .database-entry:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .database-entry:last-child {
+        margin-bottom: 0;
+    }
+
+    .database-entry strong {
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    /* Dark mode styles */
+    @media (prefers-color-scheme: dark) {
+        .database-entry {
+            background: #1F2937;
+            border-color: #4B5563;
+        }
+
+        .database-entry strong {
+            color: #9CA3AF;
+        }
+    }
+
+    /* Loading spinner for database queries */
+    .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid rgba(0, 0, 0, 0.1);
+        border-radius: 50%;
+        border-top-color: var(--primary-color);
+        animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
@@ -381,6 +536,7 @@ def index():
         {% if result %}
         <div class="result-box">
             <h2 class="text-2xl font-bold mb-6 pb-2 border-b-2 border-gray-200">Analysis Results</h2>
+
             
             {% if result.error %}
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -429,6 +585,62 @@ def index():
                 <div class="result-value">{{ result.signal_peptide }}</div>
             </div>
             {% endif %}
+
+            {% if result.uniprot_data %}
+    <div class="result-item">
+        <div class="result-label">
+            <i class="fas fa-database mr-2"></i>UniProt Matches:
+        </div>
+        <div class="result-value">
+            {% for entry in result.uniprot_data %}
+            <div class="database-entry">
+                <strong>Entry ID:</strong> {{ entry.entry_id }}<br>
+                <strong>Protein Name:</strong> {{ entry.protein_name }}<br>
+                <strong>Organism:</strong> {{ entry.organism }}<br>
+                <strong>Function:</strong> {{ entry.function }}<br>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if result.genbank_data %}
+    <div class="result-item">
+        <div class="result-label">
+            <i class="fas fa-dna mr-2"></i>GenBank Matches:
+        </div>
+        <div class="result-value">
+            {% for entry in result.genbank_data %}
+            <div class="database-entry">
+                <strong>Accession:</strong> {{ entry.accession }}<br>
+                <strong>Title:</strong> {{ entry.title }}<br>
+                <strong>Length:</strong> {{ entry.length }} bp<br>
+                <strong>E-value:</strong> {{ entry.e_value }}<br>
+                <strong>Identity:</strong> {{ "%.2f"|format(entry.identity) }}%<br>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if result.blast_results %}
+    <div class="result-item">
+        <div class="result-label">
+            <i class="fas fa-search mr-2"></i>BLAST Results:
+        </div>
+        <div class="result-value">
+            {% for entry in result.blast_results %}
+            <div class="database-entry">
+                <strong>Title:</strong> {{ entry.title }}<br>
+                <strong>Length:</strong> {{ entry.length }} bp<br>
+                <strong>E-value:</strong> {{ entry.e_value }}<br>
+                <strong>Score:</strong> {{ entry.score }}<br>
+                <strong>Identity:</strong> {{ "%.2f"|format(entry.identity_percentage) }}%<br>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
         </div>
         {% endif %}
 
