@@ -175,7 +175,7 @@ def index():
         .input-label {
             font-weight: 600;
             margin-bottom: 0.75rem;
-            color: #2C3E50;
+            color: white;
             font-size: 1.2rem;
             display: block;
         }
