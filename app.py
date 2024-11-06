@@ -408,10 +408,10 @@ def index():
         </div>
         {% endif %}
 
-        <footer class="mt-8 text-center text-gray-600">
-            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="text-gray-800 hover:text-gray-900 dark:text-gray-400" target="_blank">Bjorn99</a></p>
+        <footer class="mt-8 text-center text-white-600">
+            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="text-white-800 hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
             <p>
-                <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-gray-800 hover:text-gray-900 dark:text-gray-400" target="_blank">
+                <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-white-800 hover:text-white-900 dark:text-white-400" target="_blank">
                     <i class="fab fa-github"></i>
                     View on GitHub
                 </a>
