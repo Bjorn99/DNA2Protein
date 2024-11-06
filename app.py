@@ -445,7 +445,7 @@ def index():
         </head>
         <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
             <div class="container">
-                <h1 class="title">DNA to Protein Translator</h1>
+                <h1 class="title">DNA2PROTEIN</h1>
                 <form method="post" class="input-form">
                     <label for="dna_sequence" class="input-label">Enter DNA Sequence:</label>
                     <input type="text" id="dna_sequence" name="dna_sequence" required class="input-field" placeholder="e.g., ATGCGATCGATCG"     >
