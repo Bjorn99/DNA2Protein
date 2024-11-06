@@ -245,6 +245,7 @@ def index():
         .result-box:hover {
             transform: translateY(-5px);
             box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.15);
+            color: #2d3748;
         }
 
         .result-title {
@@ -278,7 +279,7 @@ def index():
         .result-item:hover {
             transform: translateX(5px);
             background-color: #f1f5f9;
-            color: #f8fafc
+            color: #2d3748;
         }
 
         .result-label {
