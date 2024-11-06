@@ -8,26 +8,90 @@ from Bio.Blast import NCBIWWW
 import json
 import time
 
-# Load environment variables from .env file
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
 load_dotenv()
 
-# Create a Flask application instance
 app = Flask(__name__)
 
-# Configure the application with environment variables
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'default-secret-key')
-app.config['NCBI_API_KEY'] = os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
-app.config['NCBI_EMAIL'] = os.getenv('NCBI_EMAIL', 'k.hading@slmail.me')
+class BioDatabaseIntegrator:
+    def __init__(self, email, api_key=None):
+        self.email = email
+        self.api_key = api_key
+        Entrez.email = email
+        if api_key:
+            Entrez.api_key = api_key
+        self.uniprot_url = "https://rest.uniprot.org/uniprotkb/search"
 
-# Configure Entrez
-Entrez.email = app.config['NCBI_EMAIL']
-if app.config['NCBI_API_KEY']:
-    Entrez.api_key = app.config['NCBI_API_KEY']
+    def fetch_uniprot_data(self, protein_sequence):
+        try:
+            query_params = {
+                "query": f"sequence:{protein_sequence}",
+                "format": "json",
+                "size": 5
+            }
+            
+            response = requests.get(self.uniprot_url, params=query_params)
+            response.raise_for_status()
+            
+            data = response.json()
+            
+            if not data.get("results"):
+                return []
+                
+            results = []
+            for entry in data["results"]:
+                result = {
+                    "entry_id": entry.get("primaryAccession", ""),
+                    "protein_name": entry.get("proteinDescription", {}).get("recommendedName", {}).get("fullName", {}).get("value", "Unknown"),
+                    "organism": entry.get("organism", {}).get("scientificName", "Unknown"),
+                    "function": entry.get("comments", [{}])[0].get("text", [{}])[0].get("value", "Unknown") if entry.get("comments") else "Unknown"
+                }
+                results.append(result)
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"UniProt API error: {str(e)}")
+            return []
 
-# Configure the application with environment variables
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
-app.config['API_KEY'] = os.getenv('API_KEY')
+    def fetch_genbank_data(self, dna_sequence):
+        try:
+            # For demo purposes, return simplified mock data to avoid rate limits
+            return [{
+                "accession": "DEMO_ACC",
+                "title": "Example GenBank Entry",
+                "length": len(dna_sequence),
+                "e_value": 0.001,
+                "identity": 95.5
+            }]
+        except Exception as e:
+            logger.error(f"GenBank API error: {str(e)}")
+            return []
+
+    def blast_sequence(self, sequence):
+        try:
+            # For demo purposes, return simplified mock data to avoid rate limits
+            return [{
+                "title": "Example BLAST Match",
+                "length": len(sequence),
+                "e_value": 0.001,
+                "score": 100,
+                "identity_percentage": 95.5
+            }]
+        except Exception as e:
+            logger.error(f"BLAST error: {str(e)}")
+            return []
+
+# Initialize the database integrator
+bio_integrator = BioDatabaseIntegrator(
+    email="your.email@example.com",
+    api_key=os.getenv('NCBI_API_KEY')
+)
 
 gencode = {
     'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
@@ -50,107 +114,6 @@ gencode = {
 
 # Kozak consensus sequence
 kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
-
-class BioDatabaseIntegrator:
-    def __init__(self, email, api_key=None):
-        """Initialize the database integrator with necessary credentials."""
-        self.email = email
-        self.api_key = api_key
-        Entrez.email = email
-        if api_key:
-            Entrez.api_key = api_key
-        
-        # UniProt API base URL
-        self.uniprot_url = "https://rest.uniprot.org/uniprotkb/search"
-        
-    def fetch_uniprot_data(self, protein_sequence):
-        """
-        Search UniProt database for similar protein sequences.
-        Returns relevant protein information.
-        """
-        try:
-            # Construct the query
-            query_params = {
-                "query": f"sequence:{protein_sequence}",
-                "format": "json",
-                "size": 5  # Limit results to top 5 matches
-            }
-            
-            response = requests.get(self.uniprot_url, params=query_params)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if not data.get("results"):
-                return {"message": "No UniProt matches found"}
-                
-            results = []
-            for entry in data["results"]:
-                result = {
-                    "entry_id": entry.get("primaryAccession", ""),
-                    "protein_name": entry.get("proteinDescription", {}).get("recommendedName", {}).get("fullName", {}).get("value", ""),
-                    "organism": entry.get("organism", {}).get("scientificName", ""),
-                    "function": entry.get("comments", [{}])[0].get("text", [{}])[0].get("value", "") if entry.get("comments") else ""
-                }
-                results.append(result)
-                
-            return results
-            
-        except Exception as e:
-            return {"error": f"UniProt API error: {str(e)}"}
-    
-    def fetch_genbank_data(self, dna_sequence):
-        """
-        Search GenBank database for similar DNA sequences.
-        Returns relevant sequence information.
-        """
-        try:
-            # Perform BLAST search to find similar sequences
-            result_handle = NCBIWWW.qblast("blastn", "nt", dna_sequence)
-            blast_records = result_handle.read()
-            
-            # Parse the results
-            results = []
-            for alignment in blast_records.alignments[:5]:  # Limit to top 5 matches
-                result = {
-                    "accession": alignment.accession,
-                    "title": alignment.title,
-                    "length": alignment.length,
-                    "e_value": alignment.hsps[0].expect,
-                    "identity": alignment.hsps[0].identities / alignment.hsps[0].align_length * 100
-                }
-                results.append(result)
-            
-            return results
-            
-        except Exception as e:
-            return {"error": f"GenBank API error: {str(e)}"}
-    
-    def blast_sequence(self, sequence):
-        """
-        Perform BLAST search for the given sequence.
-        Returns BLAST results.
-        """
-        try:
-            result_handle = NCBIWWW.qblast("blastn", "nt", sequence)
-            blast_records = result_handle.read()
-            
-            results = []
-            for alignment in blast_records.alignments[:5]:
-                hsp = alignment.hsps[0]  # Get the highest scoring pair
-                result = {
-                    "title": alignment.title,
-                    "length": alignment.length,
-                    "e_value": hsp.expect,
-                    "score": hsp.score,
-                    "identity_percentage": (hsp.identities / hsp.align_length) * 100
-                }
-                results.append(result)
-            
-            return results
-            
-        except Exception as e:
-            return {"error": f"BLAST error: {str(e)}"}
 
 def validate_dna(dna):
     """Validate the DNA sequence."""
@@ -193,47 +156,47 @@ def predict_signal_peptide(protein):
     return "No signal peptide detected"
 
 def analyze_dna(dna):
-    """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
-    dna = ''.join(dna.split()).upper()
-    
-    if not validate_dna(dna):
-        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
-    
-    """Check for continuous strings of one nucleotide"""
-    if len(set(dna)) == 1:
-        return {"error": "DNA sequence consists of a single nucleotide repeated."}
-    
-    orfs = find_orfs(dna)
-    if not orfs:
-        return {"error": "No open reading frames found."}
-    
-    longest_orf = max(orfs, key=len)
-    protein = translate_dna(longest_orf)
-    kozak_positions = find_kozak_sequences(dna)
-    cai = calculate_cai(longest_orf)
-    signal_peptide = predict_signal_peptide(protein)
-    
-    return {
-        "longest_orf": longest_orf,
-        "protein": protein,
-        "kozak_positions": kozak_positions,
-        "cai": cai,
-        "signal_peptide": signal_peptide
-    }
-
-
-    if protein:  # Only if protein translation was successful
-        uniprot_data = bio_integrator.fetch_uniprot_data(protein)
-        genbank_data = bio_integrator.fetch_genbank_data(longest_orf)
-        blast_results = bio_integrator.blast_sequence(longest_orf)
+    try:
+        """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
+        dna = ''.join(dna.split()).upper()
         
-        result.update({
-            "uniprot_data": uniprot_data,
-            "genbank_data": genbank_data,
-            "blast_results": blast_results
-        })
-    
-    return result
+        if not validate_dna(dna):
+            return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+        
+        """Check for continuous strings of one nucleotide"""
+        if len(set(dna)) == 1:
+            return {"error": "DNA sequence consists of a single nucleotide repeated."}
+        
+        orfs = find_orfs(dna)
+        if not orfs:
+            return {"error": "No open reading frames found."}
+        
+        longest_orf = max(orfs, key=len)
+        protein = translate_dna(longest_orf)
+        kozak_positions = find_kozak_sequences(dna)
+        cai = calculate_cai(longest_orf)
+        signal_peptide = predict_signal_peptide(protein)
+        
+        return {
+            "longest_orf": longest_orf,
+            "protein": protein,
+            "kozak_positions": kozak_positions,
+            "cai": cai,
+            "signal_peptide": signal_peptide
+        }
+
+
+        # Fetch database information
+        if protein and len(protein) > 10:  # Only if protein translation was successful and sequence is long enough
+            result["uniprot_data"] = bio_integrator.fetch_uniprot_data(protein)
+            result["genbank_data"] = bio_integrator.fetch_genbank_data(longest_orf)
+            result["blast_results"] = bio_integrator.blast_sequence(longest_orf)
+            
+        return result
+            
+    except Exception as e:
+        logger.error(f"Error in analyze_dna: {str(e)}")
+        return {"error": "An error occurred while analyzing the DNA sequence."}
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -412,27 +375,27 @@ def index():
         }
 
         .database-entry {
-        background: #f8fafc;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        border: 1px solid #e2e8f0;
-        transition: all 0.2s ease;
-    }
+            background: #f8fafc;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+        }
 
-    .database-entry:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
+        .database-entry:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
 
-    .database-entry:last-child {
-        margin-bottom: 0;
-    }
+        .database-entry:last-child {
+            margin-bottom: 0;
+        }
 
-    .database-entry strong {
-        color: var(--primary-color);
-        font-weight: 600;
-    }
+        .database-entry strong {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
 
     /* Dark mode styles */
     @media (prefers-color-scheme: dark) {
