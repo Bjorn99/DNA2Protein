@@ -3,12 +3,171 @@ from dotenv import load_dotenv
 import os
 import re
 from collections import Counter
+from bio_database_integration import BioDatabaseIntegrator
+from Bio.Blast import NCBIWWW
+import json
+import time
 
 # Load environment variables from .env file
 load_dotenv()
 
+import requests
+from Bio import Entrez, SeqIO
+from Bio.Blast import NCBIWWW
+import json
+import time
+
+class BioDatabaseIntegrator:
+    def __init__(self, email, api_key=None):
+        """
+        Initialize the database integrator with necessary credentials.
+        
+        Args:
+            email (str): Email for NCBI services
+            api_key (str, optional): NCBI API key for higher rate limits
+        """
+        self.email = email
+        Entrez.email = email
+        self.api_key = api_key
+        if api_key:
+            Entrez.api_key = api_key
+        
+    def fetch_uniprot_data(self, protein_sequence):
+        """
+        Search UniProt database for similar protein sequences and annotations.
+        
+        Args:
+            protein_sequence (str): Amino acid sequence
+            
+        Returns:
+            dict: UniProt search results and annotations
+        """
+        base_url = "https://rest.uniprot.org/uniprotkb/search"
+        params = {
+            "query": f"sequence:{protein_sequence}",
+            "format": "json"
+        }
+        
+        try:
+            response = requests.get(base_url, params=params)
+            response.raise_for_status()
+            data = response.json()
+            
+            if not data.get("results"):
+                return {"message": "No UniProt matches found"}
+            
+            # Extract relevant information from the first match
+            match = data["results"][0]
+            return {
+                "uniprot_id": match.get("primaryAccession"),
+                "protein_name": match.get("proteinDescription", {}).get("recommendedName", {}).get("fullName", {}).get("value"),
+                "organism": match.get("organism", {}).get("scientificName"),
+                "function": match.get("comments", [{}])[0].get("function", [{}])[0].get("value"),
+                "database_refs": match.get("uniProtKBCrossReferences", [])
+            }
+        except requests.exceptions.RequestException as e:
+            return {"error": f"UniProt API error: {str(e)}"}
+
+    def blast_sequence(self, sequence, program="blastn", database="nt"):
+        """
+        Perform BLAST search using NCBI BLAST.
+        
+        Args:
+            sequence (str): DNA or protein sequence
+            program (str): BLAST program to use (blastn, blastp, etc.)
+            database (str): Database to search against
+            
+        Returns:
+            dict: BLAST results
+        """
+        try:
+            result_handle = NCBIWWW.qblast(program, database, sequence)
+            blast_records = result_handle.read()
+            return {"blast_results": blast_records}
+        except Exception as e:
+            return {"error": f"BLAST error: {str(e)}"}
+
+    def fetch_genbank_data(self, sequence):
+        """
+        Search GenBank for similar sequences and annotations.
+        
+        Args:
+            sequence (str): DNA sequence
+            
+        Returns:
+            dict: GenBank search results and annotations
+        """
+        try:
+            # Search GenBank
+            search_handle = Entrez.esearch(db="nucleotide", term=sequence, retmax=5)
+            search_results = Entrez.read(search_handle)
+            search_handle.close()
+            
+            if not search_results.get("IdList"):
+                return {"message": "No GenBank matches found"}
+            
+            # Fetch details for the first match
+            fetch_handle = Entrez.efetch(
+                db="nucleotide", 
+                id=search_results["IdList"][0], 
+                rettype="gb", 
+                retmode="text"
+            )
+            record = SeqIO.read(fetch_handle, "genbank")
+            fetch_handle.close()
+            
+            # Extract relevant information
+            features = []
+            for feature in record.features:
+                if feature.type != "source":
+                    features.append({
+                        "type": feature.type,
+                        "location": str(feature.location),
+                        "qualifiers": {k: v[0] if isinstance(v, list) else v 
+                                     for k, v in feature.qualifiers.items()}
+                    })
+            
+            return {
+                "accession": record.id,
+                "description": record.description,
+                "length": len(record.seq),
+                "features": features,
+                "references": [{
+                    "authors": ref.authors,
+                    "title": ref.title,
+                    "journal": ref.journal
+                } for ref in record.annotations.get("references", [])]
+            }
+        except Exception as e:
+            return {"error": f"GenBank error: {str(e)}"}
+
+    def rate_limit_handler(self, func):
+        """
+        Decorator to handle rate limiting for API calls.
+        """
+        def wrapper(*args, **kwargs):
+            max_retries = 3
+            retry_delay = 1
+            
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if "Rate limit" in str(e) and attempt < max_retries - 1:
+                        time.sleep(retry_delay)
+                        retry_delay *= 2
+                    else:
+                        raise e
+        return wrapper
+
 # Create a Flask application instance
 app = Flask(__name__)
+
+# After creating Flask app
+bio_integrator = BioDatabaseIntegrator(
+    email="k.hading@slmail.me",  # Required for NCBI services
+    api_key=os.getenv('NCBI_API_KEY', '83469fae42ffbc3846e3adbc8bc02fb09609')  # Optional but recommended
+)
 
 # Configure the application with environment variables
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
@@ -105,6 +264,20 @@ def analyze_dna(dna):
         "cai": cai,
         "signal_peptide": signal_peptide
     }
+
+
+    if protein:  # Only if protein translation was successful
+        uniprot_data = bio_integrator.fetch_uniprot_data(protein)
+        genbank_data = bio_integrator.fetch_genbank_data(longest_orf)
+        blast_results = bio_integrator.blast_sequence(longest_orf)
+        
+        result.update({
+            "uniprot_data": uniprot_data,
+            "genbank_data": genbank_data,
+            "blast_results": blast_results
+        })
+    
+    return result
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -407,6 +580,40 @@ def index():
             {% endif %}
         </div>
         {% endif %}
+
+        {% if result.uniprot_data %}
+<div class="result-item">
+    <div class="result-label">
+        <i class="fas fa-database mr-2"></i>UniProt Data:
+    </div>
+    <div class="result-value">
+        {% if result.uniprot_data.protein_name %}
+            <p>Protein Name: {{ result.uniprot_data.protein_name }}</p>
+            <p>Organism: {{ result.uniprot_data.organism }}</p>
+            <p>Function: {{ result.uniprot_data.function }}</p>
+        {% else %}
+            <p>{{ result.uniprot_data.message }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if result.genbank_data %}
+<div class="result-item">
+    <div class="result-label">
+        <i class="fas fa-dna mr-2"></i>GenBank Data:
+    </div>
+    <div class="result-value">
+        {% if result.genbank_data.accession %}
+            <p>Accession: {{ result.genbank_data.accession }}</p>
+            <p>Description: {{ result.genbank_data.description }}</p>
+            <p>Length: {{ result.genbank_data.length }}</p>
+        {% else %}
+            <p>{{ result.genbank_data.message }}</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
 
         <footer class="mt-8 text-center text-white-600">
             <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="text-white-800 hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
