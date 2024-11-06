@@ -123,29 +123,26 @@ def index():
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        /* Modern Color Scheme */
         :root {
-            --primary-color: #3B82F6;
-            --secondary-color: #1E40AF;
-            --accent-color: #60A5FA;
-            --success-color: #059669;
-            --error-color: #DC2626;
+            --primary-color: #2C3E50;
+            --secondary-color: #34495E;
+            --accent-color: #576574;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
         }
 
         body {
-            background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
-            color: #1F2937;
+            background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%);
+            color: #2d3748;
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
-        /* Enhanced Container */
         .container {
             max-width: 1000px;
             margin: 2rem auto;
             padding: 0 1.5rem;
         }
 
-        /* Modernized Title */
         .title {
             font-size: 3.5rem;
             font-weight: 800;
@@ -157,7 +154,6 @@ def index():
             letter-spacing: -0.05em;
         }
 
-        /* Enhanced Form Styles */
         .input-form {
             background: white;
             padding: 2rem;
@@ -180,33 +176,47 @@ def index():
 
         .input-field:focus {
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.2);
             outline: none;
         }
 
-        /* Enhanced Button */
         .submit-button {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
             color: white;
             font-weight: 600;
-            padding: 1rem 2rem;
-            border-radius: 0.75rem;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.75rem;
-            transition: all 0.3s ease;
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
             text-transform: uppercase;
             letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+            width: 100%;
+            border: none;
+            cursor: pointer;
         }
 
         .submit-button:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+            box-shadow: 0 8px 15px rgba(44, 62, 80, 0.3);
+            background: linear-gradient(135deg, #34495E 0%, #2C3E50 100%);
         }
 
-        /* Improved Results Section */
+        .submit-button i {
+            margin-right: 0.75rem;
+            transition: transform 0.3s ease;
+        }
+
+        .submit-button:hover i {
+            animation: dna-spin 2s linear infinite;
+        }
+
+        @keyframes dna-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         .result-box {
             background: white;
             border-radius: 1rem;
@@ -249,36 +259,12 @@ def index():
             border: 1px solid #E5E7EB;
         }
 
-        /* Loading Animation */
-        .loading {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(5px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .dna-animation {
-            width: 60px;
-            height: 60px;
-            border: 4px solid var(--primary-color);
-            border-top-color: transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-
-        /* Sequence Validator */
         .sequence-validator {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             margin-top: 0.5rem;
+            margin-bottom: 1rem;
             font-size: 0.9rem;
         }
 
@@ -337,14 +323,6 @@ def index():
                 border-color: #4B5563;
                 color: #F3F4F6;
             }
-
-            .loading {
-                background: rgba(17, 24, 39, 0.8);
-            }
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -372,9 +350,6 @@ def index():
                 <button type="submit" class="submit-button">
                     <i class="fas fa-dna"></i>
                     Analyze DNA
-                    <span class="loading-indicator hidden">
-                        <i class="fas fa-spinner fa-spin"></i>
-                    </span>
                 </button>
             </form>
         </div>
@@ -434,18 +409,14 @@ def index():
         {% endif %}
 
         <footer class="mt-8 text-center text-gray-600">
-            <p class="mb-2">Created with ❤️ by <a href="https://github.com/Bjorn99" class="text-blue-600 hover:text-blue-800 dark:text-blue-400" target="_blank">Bjorn99</a></p>
+            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="text-gray-800 hover:text-gray-900 dark:text-gray-400" target="_blank">Bjorn99</a></p>
             <p>
-                <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-blue-600 hover:text-blue-800 dark:text-blue-400" target="_blank">
+                <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-gray-800 hover:text-gray-900 dark:text-gray-400" target="_blank">
                     <i class="fab fa-github"></i>
                     View on GitHub
                 </a>
             </p>
         </footer>
-    </div>
-
-    <div class="loading">
-        <div class="dna-animation"></div>
     </div>
 
     <script>
@@ -455,7 +426,6 @@ def index():
             const validator = document.querySelector('.sequence-validator');
             const validatorIcon = document.querySelector('.validator-icon');
             const validatorText = document.querySelector('.validator-text');
-            const loading = document.querySelector('.loading');
 
             function validateSequence(sequence) {
                 const validChars = /^[ATCGatcg]+$/;
@@ -469,10 +439,6 @@ def index():
                 validatorIcon.className = 'validator-icon ' + (isValid ? 'valid' : 'invalid');
                 validatorText.textContent = isValid ? 'Valid DNA sequence' : 'Invalid characters detected';
                 validatorText.style.color = isValid ? 'var(--success-color)' : 'var(--error-color)';
-            });
-
-            form.addEventListener('submit', function() {
-                loading.style.display = 'flex';
             });
         });
     </script>
