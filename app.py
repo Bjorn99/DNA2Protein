@@ -278,6 +278,7 @@ def index():
         .result-item:hover {
             transform: translateX(5px);
             background-color: #f1f5f9;
+            color: #f8fafc
         }
 
         .result-label {
