@@ -244,7 +244,7 @@ def index():
         }
 
         .result-label {
-            color: var(--primary-color);
+            color: white;
             font-weight: 600;
             margin-bottom: 0.5rem;
             font-size: 1.1rem;
