@@ -3,95 +3,17 @@ from dotenv import load_dotenv
 import os
 import re
 from collections import Counter
-from bio_database_integration import BioDatabaseIntegrator
-from Bio.Blast import NCBIWWW
-import json
-import time
 
-
-# Set up logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Load environment variables
+# Load environment variables from .env file
 load_dotenv()
 
+# Create a Flask application instance
 app = Flask(__name__)
 
-class BioDatabaseIntegrator:
-    def __init__(self, email, api_key=None):
-        self.email = email
-        self.api_key = api_key
-        Entrez.email = email
-        if api_key:
-            Entrez.api_key = api_key
-        self.uniprot_url = "https://rest.uniprot.org/uniprotkb/search"
-
-    def fetch_uniprot_data(self, protein_sequence):
-        try:
-            query_params = {
-                "query": f"sequence:{protein_sequence}",
-                "format": "json",
-                "size": 5
-            }
-            
-            response = requests.get(self.uniprot_url, params=query_params)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if not data.get("results"):
-                return []
-                
-            results = []
-            for entry in data["results"]:
-                result = {
-                    "entry_id": entry.get("primaryAccession", ""),
-                    "protein_name": entry.get("proteinDescription", {}).get("recommendedName", {}).get("fullName", {}).get("value", "Unknown"),
-                    "organism": entry.get("organism", {}).get("scientificName", "Unknown"),
-                    "function": entry.get("comments", [{}])[0].get("text", [{}])[0].get("value", "Unknown") if entry.get("comments") else "Unknown"
-                }
-                results.append(result)
-            
-            return results
-            
-        except Exception as e:
-            logger.error(f"UniProt API error: {str(e)}")
-            return []
-
-    def fetch_genbank_data(self, dna_sequence):
-        try:
-            # For demo purposes, return simplified mock data to avoid rate limits
-            return [{
-                "accession": "DEMO_ACC",
-                "title": "Example GenBank Entry",
-                "length": len(dna_sequence),
-                "e_value": 0.001,
-                "identity": 95.5
-            }]
-        except Exception as e:
-            logger.error(f"GenBank API error: {str(e)}")
-            return []
-
-    def blast_sequence(self, sequence):
-        try:
-            # For demo purposes, return simplified mock data to avoid rate limits
-            return [{
-                "title": "Example BLAST Match",
-                "length": len(sequence),
-                "e_value": 0.001,
-                "score": 100,
-                "identity_percentage": 95.5
-            }]
-        except Exception as e:
-            logger.error(f"BLAST error: {str(e)}")
-            return []
-
-# Initialize the database integrator
-bio_integrator = BioDatabaseIntegrator(
-    email="k.hading@slmail.me",
-    api_key=os.getenv('83469fae42ffbc3846e3adbc8bc02fb09609')
-)
+# Configure the application with environment variables
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
+app.config['API_KEY'] = os.getenv('API_KEY')
 
 gencode = {
     'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
@@ -156,47 +78,33 @@ def predict_signal_peptide(protein):
     return "No signal peptide detected"
 
 def analyze_dna(dna):
-    try:
-        """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
-        dna = ''.join(dna.split()).upper()
-        
-        if not validate_dna(dna):
-            return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
-        
-        """Check for continuous strings of one nucleotide"""
-        if len(set(dna)) == 1:
-            return {"error": "DNA sequence consists of a single nucleotide repeated."}
-        
-        orfs = find_orfs(dna)
-        if not orfs:
-            return {"error": "No open reading frames found."}
-        
-        longest_orf = max(orfs, key=len)
-        protein = translate_dna(longest_orf)
-        kozak_positions = find_kozak_sequences(dna)
-        cai = calculate_cai(longest_orf)
-        signal_peptide = predict_signal_peptide(protein)
-        
-        return {
-            "longest_orf": longest_orf,
-            "protein": protein,
-            "kozak_positions": kozak_positions,
-            "cai": cai,
-            "signal_peptide": signal_peptide
-        }
-
-
-        # Fetch database information
-        if protein and len(protein) > 10:  # Only if protein translation was successful and sequence is long enough
-            result["uniprot_data"] = bio_integrator.fetch_uniprot_data(protein)
-            result["genbank_data"] = bio_integrator.fetch_genbank_data(longest_orf)
-            result["blast_results"] = bio_integrator.blast_sequence(longest_orf)
-            
-        return result
-            
-    except Exception as e:
-        logger.error(f"Error in analyze_dna: {str(e)}")
-        return {"error": "An error occurred while analyzing the DNA sequence."}
+    """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
+    dna = ''.join(dna.split()).upper()
+    
+    if not validate_dna(dna):
+        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+    
+    """Check for continuous strings of one nucleotide"""
+    if len(set(dna)) == 1:
+        return {"error": "DNA sequence consists of a single nucleotide repeated."}
+    
+    orfs = find_orfs(dna)
+    if not orfs:
+        return {"error": "No open reading frames found."}
+    
+    longest_orf = max(orfs, key=len)
+    protein = translate_dna(longest_orf)
+    kozak_positions = find_kozak_sequences(dna)
+    cai = calculate_cai(longest_orf)
+    signal_peptide = predict_signal_peptide(protein)
+    
+    return {
+        "longest_orf": longest_orf,
+        "protein": protein,
+        "kozak_positions": kozak_positions,
+        "cai": cai,
+        "signal_peptide": signal_peptide
+    }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -374,56 +282,6 @@ def index():
             background-color: var(--error-color);
         }
 
-        .database-entry {
-            background: #f8fafc;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1rem;
-            border: 1px solid #e2e8f0;
-            transition: all 0.2s ease;
-        }
-
-        .database-entry:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        }
-
-        .database-entry:last-child {
-            margin-bottom: 0;
-        }
-
-        .database-entry strong {
-            color: var(--primary-color);
-            font-weight: 600;
-        }
-
-    /* Dark mode styles */
-    @media (prefers-color-scheme: dark) {
-        .database-entry {
-            background: #1F2937;
-            border-color: #4B5563;
-        }
-
-        .database-entry strong {
-            color: #9CA3AF;
-        }
-    }
-
-    /* Loading spinner for database queries */
-    .loading-spinner {
-        display: inline-block;
-        width: 20px;
-        height: 20px;
-        border: 3px solid rgba(0, 0, 0, 0.1);
-        border-radius: 50%;
-        border-top-color: var(--primary-color);
-        animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
-    }
-
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
@@ -499,7 +357,6 @@ def index():
         {% if result %}
         <div class="result-box">
             <h2 class="text-2xl font-bold mb-6 pb-2 border-b-2 border-gray-200">Analysis Results</h2>
-
             
             {% if result.error %}
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -548,62 +405,6 @@ def index():
                 <div class="result-value">{{ result.signal_peptide }}</div>
             </div>
             {% endif %}
-
-            {% if result.uniprot_data %}
-    <div class="result-item">
-        <div class="result-label">
-            <i class="fas fa-database mr-2"></i>UniProt Matches:
-        </div>
-        <div class="result-value">
-            {% for entry in result.uniprot_data %}
-            <div class="database-entry">
-                <strong>Entry ID:</strong> {{ entry.entry_id }}<br>
-                <strong>Protein Name:</strong> {{ entry.protein_name }}<br>
-                <strong>Organism:</strong> {{ entry.organism }}<br>
-                <strong>Function:</strong> {{ entry.function }}<br>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if result.genbank_data %}
-    <div class="result-item">
-        <div class="result-label">
-            <i class="fas fa-dna mr-2"></i>GenBank Matches:
-        </div>
-        <div class="result-value">
-            {% for entry in result.genbank_data %}
-            <div class="database-entry">
-                <strong>Accession:</strong> {{ entry.accession }}<br>
-                <strong>Title:</strong> {{ entry.title }}<br>
-                <strong>Length:</strong> {{ entry.length }} bp<br>
-                <strong>E-value:</strong> {{ entry.e_value }}<br>
-                <strong>Identity:</strong> {{ "%.2f"|format(entry.identity) }}%<br>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
-
-    {% if result.blast_results %}
-    <div class="result-item">
-        <div class="result-label">
-            <i class="fas fa-search mr-2"></i>BLAST Results:
-        </div>
-        <div class="result-value">
-            {% for entry in result.blast_results %}
-            <div class="database-entry">
-                <strong>Title:</strong> {{ entry.title }}<br>
-                <strong>Length:</strong> {{ entry.length }} bp<br>
-                <strong>E-value:</strong> {{ entry.e_value }}<br>
-                <strong>Score:</strong> {{ entry.score }}<br>
-                <strong>Identity:</strong> {{ "%.2f"|format(entry.identity_percentage) }}%<br>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
         </div>
         {% endif %}
 
