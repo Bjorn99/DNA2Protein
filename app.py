@@ -303,6 +303,7 @@ def index():
         .result-value:hover {
             border-color: #2C3E50;
             box-shadow: 0 2px 8px rgba(44, 62, 80, 0.1);
+            color: #2d3748;
         }
 
         /* Error Message Styles */
