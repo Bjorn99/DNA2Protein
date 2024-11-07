@@ -64,11 +64,14 @@ def find_kozak_sequences(dna):
     """Find Kozak consensus sequences in the DNA."""
     return [match.start() for match in kozak_regex.finditer(dna)]
 
-def calculate_cai(dna):
-    """Calculate the Codon Adaptation Index (CAI) for a DNA sequence."""
-    codon_counts = Counter(dna[i:i+3] for i in range(0, len(dna) - 2, 3))
-    total_codons = sum(codon_counts.values())
-    return sum(count / total_codons * len(gencode[codon]) for codon, count in codon_counts.items() if codon in gencode) / (len(dna) // 3)
+def calculate_cai(sequence: str):
+        """Calculate Codon Adaptation Index."""
+        codons = [sequence[i:i+3] for i in range(0, len(sequence) - 2, 3)]
+        codon_counts = Counter(codons)
+        total_codons = sum(codon_counts.values())
+        if total_codons == 0:
+            return 0.0
+        return sum(count / total_codons for count in codon_counts.values())
 
 def predict_signal_peptide(protein):
     """Simple prediction of signal peptide presence based on N-terminal sequence."""
