@@ -1,13 +1,21 @@
 from flask import Flask, request, render_template_string
-from collections import Counter
-import re
+from dotenv import load_dotenv
 import os
-from typing import Dict, List, Optional, Tuple
+import re
+from collections import Counter
 
+# Load environment variables from .env file
+load_dotenv()
+
+# Create a Flask application instance
 app = Flask(__name__)
 
-# Essential genetic code mapping
-GENETIC_CODE = {
+# Configure the application with environment variables
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+app.config['DATABASE_URL'] = os.getenv('DATABASE_URL')
+app.config['API_KEY'] = os.getenv('API_KEY')
+
+gencode = {
     'ATA':'I', 'ATC':'I', 'ATT':'I', 'ATG':'M',
     'ACA':'T', 'ACC':'T', 'ACG':'T', 'ACT':'T',
     'AAC':'N', 'AAT':'N', 'AAA':'K', 'AAG':'K',
@@ -26,237 +34,526 @@ GENETIC_CODE = {
     'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'
 }
 
-STOP_CODONS = {'TAA', 'TAG', 'TGA'}
-START_CODON = 'ATG'
-KOZAK_PATTERN = re.compile(r'(G|A)NN(A|G)TGATG')
+# Kozak consensus sequence
+kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
 
-class DNAAnalyzer:
-    @staticmethod
-    def clean_sequence(sequence: str) -> str:
-        """Remove whitespace and convert to uppercase."""
-        return ''.join(sequence.strip().split()).upper()
+def validate_dna(dna):
+    """Validate the DNA sequence."""
+    valid_nucleotides = set('ATCG')
+    return all(nucleotide in valid_nucleotides for nucleotide in dna)
 
-    @staticmethod
-    def validate_sequence(sequence: str) -> bool:
-        """Check if sequence contains only valid nucleotides."""
-        return bool(re.match(r'^[ATCG]+$', sequence))
+def find_orfs(dna):
+    """Find all open reading frames in the given DNA sequence."""
+    if len(dna) < 3:
+        return []   
+    pattern = re.compile(r'(?=(ATG(?:...)*?(?:TAA|TAG|TGA)))')
+    return pattern.findall(dna)
 
-    @staticmethod
-    def find_orfs(sequence: str) -> List[str]:
-        """Find all possible open reading frames."""
-        orfs = []
-        seq_len = len(sequence)
-        
-        # Check all three reading frames
-        for frame in range(3):
-            i = frame
-            while i < seq_len - 2:
-                codon = sequence[i:i+3]
-                if codon == START_CODON:
-                    # Found start codon, look for stop codon
-                    j = i + 3
-                    while j < seq_len - 2:
-                        if sequence[j:j+3] in STOP_CODONS:
-                            orfs.append(sequence[i:j+3])
-                            break
-                        j += 3
-                i += 3
-        return orfs
+def translate_dna(dna):
+    """Translate a DNA sequence to a protein sequence."""
+    protein = []
+    for i in range(0, len(dna) - 2, 3):
+        codon = dna[i:i+3]
+        if codon in {'TAA', 'TAG', 'TGA'}:
+            break
+        amino_acid = gencode.get(codon, 'X')  # 'X' for unknown codons
+        protein.append(amino_acid)
+    return ''.join(protein)
 
-    @staticmethod
-    def translate_sequence(sequence: str) -> str:
-        """Translate DNA sequence to protein sequence."""
-        protein = []
-        for i in range(0, len(sequence) - 2, 3):
-            codon = sequence[i:i+3]
-            if codon in STOP_CODONS:
-                break
-            protein.append(GENETIC_CODE.get(codon, 'X'))
-        return ''.join(protein)
+def find_kozak_sequences(dna):
+    """Find Kozak consensus sequences in the DNA."""
+    return [match.start() for match in kozak_regex.finditer(dna)]
 
-    @staticmethod
-    def calculate_cai(sequence: str) -> float:
-        """Calculate Codon Adaptation Index."""
-        codons = [sequence[i:i+3] for i in range(0, len(sequence) - 2, 3)]
-        codon_counts = Counter(codons)
-        total_codons = sum(codon_counts.values())
-        if total_codons == 0:
-            return 0.0
-        return sum(count / total_codons for count in codon_counts.values())
+def calculate_cai(dna):
+    """Calculate the Codon Adaptation Index (CAI) for a DNA sequence."""
+    codon_counts = Counter(dna[i:i+3] for i in range(0, len(dna) - 2, 3))
+    total_codons = sum(codon_counts.values())
+    return sum(count / total_codons * len(gencode[codon]) for codon, count in codon_counts.items() if codon in gencode) / (len(dna) // 3)
 
-    @staticmethod
-    def predict_signal_peptide(protein: str) -> str:
-        """Basic signal peptide prediction."""
-        n_terminal = protein[:30]
-        hydrophobic = n_terminal.count('L') + n_terminal.count('A') + n_terminal.count('V')
-        return "Potential signal peptide detected" if hydrophobic > 10 else "No signal peptide detected"
+def predict_signal_peptide(protein):
+    """Simple prediction of signal peptide presence based on N-terminal sequence."""
+    n_terminal = protein[:30]  # Consider first 30 amino acids
+    if n_terminal.count('L') + n_terminal.count('A') + n_terminal.count('V') > 10:
+        return "Potential signal peptide detected"
+    return "No signal peptide detected"
 
-class FastaParser:
-    @staticmethod
-    def parse(content: str) -> Dict[str, str]:
-        """Parse FASTA format content."""
-        sequences = {}
-        current_id = None
-        current_seq = []
-
-        for line in content.split('\n'):
-            line = line.strip()
-            if not line:
-                continue
-            if line.startswith('>'):
-                if current_id:
-                    sequences[current_id] = ''.join(current_seq)
-                current_id = line[1:].split()[0]
-                current_seq = []
-            else:
-                current_seq.append(line)
-        
-        if current_id:
-            sequences[current_id] = ''.join(current_seq)
-        
-        return sequences
-
-class SequenceAnalysis:
-    def __init__(self, sequence: str, identifier: str = "input_sequence"):
-        self.analyzer = DNAAnalyzer()
-        self.sequence = self.analyzer.clean_sequence(sequence)
-        self.identifier = identifier
-
-    def analyze(self) -> Dict:
-        """Perform complete sequence analysis."""
-        if not self.analyzer.validate_sequence(self.sequence):
-            return {"error": "Invalid DNA sequence. Use only A, T, C, and G."}
-
-        orfs = self.analyzer.find_orfs(self.sequence)
-        if not orfs:
-            return {"error": "No open reading frames found."}
-
-        longest_orf = max(orfs, key=len)
-        protein = self.analyzer.translate_sequence(longest_orf)
-
-        return {
-            "sequence_id": self.identifier,
-            "sequence_length": len(self.sequence),
-            "longest_orf": longest_orf,
-            "protein": protein,
-            "kozak_positions": [m.start() for m in KOZAK_PATTERN.finditer(self.sequence)],
-            "cai": self.analyzer.calculate_cai(longest_orf),
-            "signal_peptide": self.analyzer.predict_signal_peptide(protein),
-            "total_orfs": len(orfs)
-        }
+def analyze_dna(dna):
+    """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
+    dna = ''.join(dna.split()).upper()
+    
+    if not validate_dna(dna):
+        return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
+    
+    """Check for continuous strings of one nucleotide"""
+    if len(set(dna)) == 1:
+        return {"error": "DNA sequence consists of a single nucleotide repeated."}
+    
+    orfs = find_orfs(dna)
+    if not orfs:
+        return {"error": "No open reading frames found."}
+    
+    longest_orf = max(orfs, key=len)
+    protein = translate_dna(longest_orf)
+    kozak_positions = find_kozak_sequences(dna)
+    cai = calculate_cai(longest_orf)
+    signal_peptide = predict_signal_peptide(protein)
+    
+    return {
+        "longest_orf": longest_orf,
+        "protein": protein,
+        "kozak_positions": kozak_positions,
+        "cai": cai,
+        "signal_peptide": signal_peptide
+    }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    """Handle web requests and render results."""
-    results = []
+    result = None
     error = None
-
     if request.method == "POST":
         try:
-            sequences = {}
-            if 'fasta_file' in request.files:
-                file = request.files['fasta_file']
-                if file.filename:
-                    content = file.read().decode('utf-8')
-                    sequences = FastaParser.parse(content)
-            elif 'dna_sequence' in request.form:
-                sequence = request.form['dna_sequence'].strip()
-                if '>' in sequence:
-                    sequences = FastaParser.parse(sequence)
-                else:
-                    sequences = {'input_sequence': sequence}
-
-            if not sequences:
-                raise ValueError("No sequence provided")
-
-            for seq_id, seq in sequences.items():
-                analysis = SequenceAnalysis(seq, seq_id)
-                results.append(analysis.analyze())
-
-        except Exception as e:
+            # Check if form data exists
+            if 'dna_sequence' not in request.form:
+                raise ValueError("No DNA sequence provided")
+                
+            # Get and sanitize input
+            dna_sequence = request.form['dna_sequence'].strip()
+            
+            # Validate input length
+            if not dna_sequence:
+                raise ValueError("DNA sequence cannot be empty")
+            
+            # if len(dna_sequence) > 10000:  # Adjust limit as needed
+            #     raise ValueError("DNA sequence is too long (maximum 10000 bases)")
+                
+            # Add basic XSS protection
+            dna_sequence = re.sub(r'[<>]', '', dna_sequence)
+            
+            # Process the sequence
+            result = analyze_dna(dna_sequence)
+            
+            # Handle analysis errors
+            if 'error' in result:
+                error = result['error']
+                result = None
+                
+        except ValueError as e:
             error = str(e)
-            app.logger.error(f"Error processing sequence: {str(e)}")
+        except Exception as e:
+            error = "An unexpected error occurred. Please try again."
+            # Log the actual error for debugging
+            app.logger.error(f"Error processing DNA sequence: {str(e)}")
 
-    return render_template_string('''
-<!DOCTYPE html>
+    return render_template_string('''   
+        <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DNA2Protein Analysis Tool</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2C3E50;
+            --secondary-color: #34495E;
+            --accent-color: #576574;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --text-primary: #1a202c;
+            --text-secondary: #2d3748;
+            --text-light: #718096;
+            --text-dark: #2d3748;
+        }
+
+        body {
+            background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%);
+            color: #2d3748;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 0 1.5rem;
+        }
+
+        .title {
+            font-size: 3.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            margin: 2rem 0;
+            letter-spacing: -0.05em;
+        }
+
+        .input-form {
+            background: #2d3748;
+            bordere: 1px solid #4a5568;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
+        }
+
+        .input-field {
+            background: #1a202c;
+            border-color: #4a5568;
+            color: var(--text-primary);
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #E5E7EB;
+            border-radius: 0.75rem;
+            font-size: 1.1rem;
+            transition: all 0.2s ease;
+            margin-bottom: 1.5rem;
+            font-family: 'Courier New', monospace;
+        }
+
+        .input-field:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.2);
+            outline: none;
+        }
+
+        .submit-button {
+            position: relative;
+            overflow: hidden;
+            background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
+            color: white;
+            font-weight: 600;
+            padding: 1rem 2.5rem;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+        }
+
+        .submit-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(44, 62, 80, 0.3);
+            background: linear-gradient(135deg, #34495E 0%, #2C3E50 100%);
+        }
+
+        .submit-button i {
+            margin-right: 0.75rem;
+            transition: transform 0.3s ease;
+        }
+
+        .submit-button:hover i {
+            animation: dna-spin 2s linear infinite;
+        }
+
+        @keyframes dna-spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-box {
+            background: #2d3748;
+            border: 1px solid #4a5568;
+            border-radius: 1rem;
+            padding: 2rem;
+            margin-top: 2rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .result-box:hover {
+            transform: translateY(-5px);
+        }
+
+        .result-item {
+            background: #1a202c;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.2s ease;
+        }
+
+        .result-item:hover {
+            background: #F9FAFB;
+            transform: scale(1.01);
+        }
+
+        .result-label {
+            backgroung: #2d3748;
+            color: #1a202c;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .result-label:hover {
+            color: black;
+        }
+
+        .result-value {
+            font-family: 'Courier New', monospace;
+            background: #4a5568;
+            color: var(--text-primary);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            word-break: break-all;
+            border: 1px solid #E5E7EB;
+        }
+
+        .sequence-validator {
+            color: var(--text-secondary);s
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .validator-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+
+        .validator-icon.valid {
+            background-color: var(--success-color);
+        }
+
+        .validator-icon.invalid {
+            background-color: var(--error-color);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .container {
+                margin: 1rem auto;
+            }
+
+            .title {
+                font-size: 2.5rem;
+            }
+
+            .input-form, .result-box {
+                padding: 1.5rem;
+            }
+        }
+
+        /* Dark Mode Improvements */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --text-primary: #f7fafc;
+                --text-secondary: #e2e8f0;
+                --text-light: #cbd5e0;
+            }
+
+            body {
+                background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
+                color: var(--text-primary);
+            }
+
+            .title {
+                /* Lighter gradient for dark mode */
+                background: linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+
+            .input-form, .result-box {
+                background: #2d3748;
+                border: 1px solid #4a5568;
+            }
+
+            .input-field {
+                background: #1a202c;
+                border-color: #4a5568;
+                color: var(--text-primary);
+            }
+
+            .result-item {
+                background: #1a202c;
+            }
+
+            .result-label {
+                color: #e2e8f0;  /* Lighter color for dark mode */
+            }
+
+            .result-value {
+                background: #2d3748;
+                border-color: #4a5568;
+                color: var(--text-primary);
+            }
+
+            /* Footer links in dark mode */
+            footer a {
+                color: #90cdf4 !important;  /* Lighter blue for better visibility */
+            }
+
+            footer a:hover {
+                color: green !important;
+            }
+
+            /* Validator text colors for dark mode */
+            .sequence-validator {
+                color: var(--text-light);
+            }
+
+            .validator-text.valid {
+                color: #68d391 !important;  /* Lighter green for dark mode */
+            }
+
+            .validator-text.invalid {
+                color: #fc8181 !important;  /* Lighter red for dark mode */
+            }
+        }
+
+        /* Error message improvements */
+        .bg-red-100 {
+            background-color: #fff5f5;
+            color: #c53030;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .bg-red-100 {
+                background-color: #742a2a;
+                color: #feb2b2;
+                border-color: #fc8181;
+            }
+        }
+
+    </style>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900">
-    <div class="container mx-auto px-4 py-8 max-w-4xl">
-        <h1 class="text-4xl font-bold text-center mb-8">DNA2Protein Analyzer</h1>
+<body>
+    <div class="container">
+        <h1 class="title">DNA2PROTEIN</h1>
         
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
-            <form method="post" enctype="multipart/form-data" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Upload FASTA File:</label>
-                    <input type="file" name="fasta_file" accept=".fasta,.fa,.txt" 
-                           class="w-full p-2 border rounded">
-                </div>
+        <div class="input-form">
+            <form method="post" id="dna-form">
+                <label for="dna_sequence" class="block text-lg font-semibold mb-2">Enter DNA Sequence:</label>
+                <input type="text" 
+                       id="dna_sequence" 
+                       name="dna_sequence" 
+                       required 
+                       class="input-field" 
+                       placeholder="e.g., ATGCGATCGATCG"
+                       pattern="[ATCGatcg]+"
+                       title="Please enter valid DNA sequence (A, T, C, G only)">
                 
-                <div>
-                    <label class="block text-sm font-medium mb-2">Or Enter Sequence:</label>
-                    <textarea name="dna_sequence" rows="4" 
-                             class="w-full p-2 border rounded"
-                             placeholder="Enter DNA sequence or FASTA format"></textarea>
+                <div class="sequence-validator">
+                    <div class="validator-icon"></div>
+                    <span class="validator-text">Enter a valid DNA sequence</span>
                 </div>
-                
-                <button type="submit" 
-                        class="w-full bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700">
-                    Analyze Sequence
+
+                <button type="submit" class="submit-button">
+                    <i class="fas fa-dna"></i>
+                    Analyze DNA
                 </button>
             </form>
         </div>
 
         {% if error %}
-        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-8" role="alert">
-            {{ error }}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+            <strong class="font-bold">Error: </strong>
+            <span class="block sm:inline">{{ error }}</span>
         </div>
         {% endif %}
 
-        {% for result in results %}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
-            <h2 class="text-xl font-bold mb-4">{{ result.sequence_id }}</h2>
+        {% if result %}
+        <div class="result-box">
+            <h2 class="text-2xl font-bold mb-6 pb-2 border-b-2 border-gray-200">Analysis Results</h2>
+            
             {% if result.error %}
-            <div class="text-red-600">{{ result.error }}</div>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <strong class="font-bold">Error: </strong>
+                <span class="block sm:inline">{{ result.error }}</span>
+            </div>
             {% else %}
-            <div class="space-y-4">
-                <div>
-                    <h3 class="font-semibold">Sequence Length:</h3>
-                    <p>{{ result.sequence_length }} bp</p>
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-dna mr-2"></i>Longest Open Reading Frame (ORF):
                 </div>
-                <div>
-                    <h3 class="font-semibold">Longest ORF:</h3>
-                    <p class="font-mono text-sm break-all">{{ result.longest_orf }}</p>
+                <div class="result-value">{{ result.longest_orf }}</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-project-diagram mr-2"></i>Translated Protein:
                 </div>
-                <div>
-                    <h3 class="font-semibold">Protein Translation:</h3>
-                    <p class="font-mono text-sm break-all">{{ result.protein }}</p>
+                <div class="result-value">{{ result.protein }}</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-map-marker-alt mr-2"></i>Kozak Sequence Positions:
                 </div>
-                <div>
-                    <h3 class="font-semibold">Total ORFs Found:</h3>
-                    <p>{{ result.total_orfs }}</p>
+                <div class="result-value">
+                    {% if result.kozak_positions %}
+                        {{ result.kozak_positions|join(', ') }}
+                    {% else %}
+                        No Kozak sequences found
+                    {% endif %}
                 </div>
-                <div>
-                    <h3 class="font-semibold">CAI Score:</h3>
-                    <p>{{ "%.3f"|format(result.cai) }}</p>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-chart-line mr-2"></i>Codon Adaptation Index (CAI):
                 </div>
-                <div>
-                    <h3 class="font-semibold">Signal Peptide:</h3>
-                    <p>{{ result.signal_peptide }}</p>
+                <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
+            </div>
+            
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-microscope mr-2"></i>Signal Peptide Prediction:
                 </div>
+                <div class="result-value">{{ result.signal_peptide }}</div>
             </div>
             {% endif %}
         </div>
-        {% endfor %}
+        {% endif %}
+
+        <footer class="mt-8 text-center">
+            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
+            <p>
+                <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-white-800 hover:text-white-900 dark:text-white-400" target="_blank">
+                    <i class="fab fa-github"></i>
+                    View on GitHub
+                </a>
+            </p>
+        </footer>
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('dna-form');
+            const input = document.getElementById('dna_sequence');
+            const validator = document.querySelector('.sequence-validator');
+            const validatorIcon = document.querySelector('.validator-icon');
+            const validatorText = document.querySelector('.validator-text');
+
+            function validateSequence(sequence) {
+                const validChars = /^[ATCGatcg]+$/;
+                return validChars.test(sequence);
+            }
+
+            input.addEventListener('input', function() {
+                const sequence = this.value;
+                const isValid = validateSequence(sequence);
+                
+                validatorIcon.className = 'validator-icon ' + (isValid ? 'valid' : 'invalid');
+                validatorText.textContent = isValid ? 'Valid DNA sequence' : 'Invalid characters detected';
+                validatorText.style.color = isValid ? 'var(--success-color)' : 'var(--error-color)';
+            });
+        });
+    </script>
 </body>
 </html>
-    ''', results=results, error=error)
+    ''', result=result)         
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
