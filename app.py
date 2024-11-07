@@ -64,7 +64,7 @@ def find_kozak_sequences(dna):
     """Find Kozak consensus sequences in the DNA."""
     return [match.start() for match in kozak_regex.finditer(dna)]
 
-def calculate_cai(sequence: str):
+def calculate_cai(sequence: str) -> float:
         """Calculate Codon Adaptation Index."""
         codons = [sequence[i:i+3] for i in range(0, len(sequence) - 2, 3)]
         codon_counts = Counter(codons)
