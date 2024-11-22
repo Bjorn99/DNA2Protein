@@ -34,6 +34,63 @@ gencode = {
     'TGC':'C', 'TGT':'C', 'TGA':'*', 'TGG':'W'
 }
 
+CODON_USAGE_TABLES = {
+    'e_coli': {
+        'ATA': 0.07, 'ATC': 0.42, 'ATT': 0.51, 'ATG': 1.00,  # Ile, Met
+        'ACA': 0.13, 'ACC': 0.44, 'ACG': 0.27, 'ACT': 0.16,  # Thr
+        'AAC': 0.55, 'AAT': 0.45, 'AAA': 0.74, 'AAG': 0.26,  # Asn, Lys
+        'AGC': 0.28, 'AGT': 0.15, 'AGA': 0.07, 'AGG': 0.04,  # Ser, Arg
+        'CTA': 0.04, 'CTC': 0.10, 'CTG': 0.50, 'CTT': 0.10,  # Leu
+        'CCA': 0.19, 'CCC': 0.12, 'CCG': 0.52, 'CCT': 0.16,  # Pro
+        'CAC': 0.57, 'CAT': 0.43, 'CAA': 0.34, 'CAG': 0.66,  # His, Gln
+        'CGA': 0.06, 'CGC': 0.40, 'CGG': 0.10, 'CGT': 0.38,  # Arg
+        'GTA': 0.15, 'GTC': 0.22, 'GTG': 0.37, 'GTT': 0.26,  # Val
+        'GCA': 0.21, 'GCC': 0.27, 'GCG': 0.36, 'GCT': 0.16,  # Ala
+        'GAC': 0.63, 'GAT': 0.37, 'GAA': 0.68, 'GAG': 0.32,  # Asp, Glu
+        'GGA': 0.11, 'GGC': 0.41, 'GGG': 0.15, 'GGT': 0.33,  # Gly
+        'TCA': 0.12, 'TCC': 0.15, 'TCG': 0.15, 'TCT': 0.15,  # Ser
+        'TTC': 0.58, 'TTT': 0.42, 'TTA': 0.11, 'TTG': 0.13,  # Phe, Leu
+        'TAC': 0.59, 'TAT': 0.41, 'TAA': 0.61, 'TAG': 0.09,  # Tyr, Stop
+        'TGC': 0.56, 'TGT': 0.44, 'TGA': 0.30, 'TGG': 1.00   # Cys, Stop, Trp
+    },
+    'human': {
+        'ATA': 0.16, 'ATC': 0.48, 'ATT': 0.36, 'ATG': 1.00,
+        'ACA': 0.28, 'ACC': 0.36, 'ACG': 0.12, 'ACT': 0.24,
+        'AAC': 0.54, 'AAT': 0.46, 'AAA': 0.42, 'AAG': 0.58,
+        'AGC': 0.24, 'AGT': 0.15, 'AGA': 0.20, 'AGG': 0.20,
+        'CTA': 0.07, 'CTC': 0.20, 'CTG': 0.41, 'CTT': 0.13,
+        'CCA': 0.27, 'CCC': 0.33, 'CCG': 0.11, 'CCT': 0.29,
+        'CAC': 0.58, 'CAT': 0.42, 'CAA': 0.25, 'CAG': 0.75,
+        'CGA': 0.11, 'CGC': 0.19, 'CGG': 0.21, 'CGT': 0.08,
+        'GTA': 0.11, 'GTC': 0.24, 'GTG': 0.47, 'GTT': 0.18,
+        'GCA': 0.23, 'GCC': 0.40, 'GCG': 0.11, 'GCT': 0.26,
+        'GAC': 0.54, 'GAT': 0.46, 'GAA': 0.42, 'GAG': 0.58,
+        'GGA': 0.25, 'GGC': 0.34, 'GGG': 0.25, 'GGT': 0.16,
+        'TCA': 0.15, 'TCC': 0.22, 'TCG': 0.05, 'TCT': 0.18,
+        'TTC': 0.55, 'TTT': 0.45, 'TTA': 0.07, 'TTG': 0.13,
+        'TAC': 0.56, 'TAT': 0.44, 'TAA': 0.28, 'TAG': 0.20,
+        'TGC': 0.55, 'TGT': 0.45, 'TGA': 0.52, 'TGG': 1.00
+    },
+    'yeast': {
+        'ATA': 0.27, 'ATC': 0.26, 'ATT': 0.47, 'ATG': 1.00,
+        'ACA': 0.28, 'ACC': 0.21, 'ACG': 0.14, 'ACT': 0.37,
+        'AAC': 0.43, 'AAT': 0.57, 'AAA': 0.58, 'AAG': 0.42,
+        'AGC': 0.11, 'AGT': 0.16, 'AGA': 0.48, 'AGG': 0.21,
+        'CTA': 0.14, 'CTC': 0.06, 'CTG': 0.11, 'CTT': 0.13,
+        'CCA': 0.42, 'CCC': 0.15, 'CCG': 0.12, 'CCT': 0.31,
+        'CAC': 0.36, 'CAT': 0.64, 'CAA': 0.69, 'CAG': 0.31,
+        'CGA': 0.07, 'CGC': 0.06, 'CGG': 0.04, 'CGT': 0.15,
+        'GTA': 0.21, 'GTC': 0.20, 'GTG': 0.19, 'GTT': 0.40,
+        'GCA': 0.29, 'GCC': 0.21, 'GCG': 0.11, 'GCT': 0.39,
+        'GAC': 0.37, 'GAT': 0.63, 'GAA': 0.70, 'GAG': 0.30,
+        'GGA': 0.23, 'GGC': 0.19, 'GGG': 0.12, 'GGT': 0.46,
+        'TCA': 0.21, 'TCC': 0.16, 'TCG': 0.10, 'TCT': 0.26,
+        'TTC': 0.40, 'TTT': 0.60, 'TTA': 0.28, 'TTG': 0.28,
+        'TAC': 0.43, 'TAT': 0.57, 'TAA': 0.47, 'TAG': 0.23,
+        'TGC': 0.38, 'TGT': 0.62, 'TGA': 0.30, 'TGG': 1.00
+    }
+}
+
 # Kozak consensus sequence
 kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
 
@@ -105,6 +162,53 @@ def predict_signal_peptide(protein):
         return "Potential signal peptide detected"
     return "No signal peptide detected"
 
+def optimize_sequence(sequence, organism):
+    """Optimize DNA sequence for expression in different organisms."""
+    if organism not in CODON_USAGE_TABLES:
+        raise ValueError(f"Optimization not available for {organism}")
+    
+    codon_table = CODON_USAGE_TABLES[organism]
+    protein = translate_dna(sequence)
+    optimized = ""
+    
+    # Get all possible codons for each amino acid
+    aa_to_codons = {}
+    for codon, aa in gencode.items():
+        if aa not in aa_to_codons:
+            aa_to_codons[aa] = []
+        aa_to_codons[aa].append(codon)
+    
+    # For each amino acid in the protein sequence
+    for aa in protein:
+        if aa == '*':  # Stop codon
+            possible_stops = ['TAA', 'TAG', 'TGA']
+            best_stop = max(possible_stops, key=lambda x: codon_table.get(x, 0))
+            optimized += best_stop
+            break
+            
+        possible_codons = aa_to_codons.get(aa, [])
+        if possible_codons:
+            # Choose the codon with highest usage frequency
+            best_codon = max(possible_codons, key=lambda x: codon_table.get(x, 0))
+            optimized += best_codon
+    
+    # Calculate statistics
+    original_cai = calculate_cai(sequence)
+    optimized_cai = calculate_cai(optimized)
+    gc_content_original = (sequence.count('G') + sequence.count('C')) / len(sequence) * 100
+    gc_content_optimized = (optimized.count('G') + optimized.count('C')) / len(optimized) * 100
+    
+    return {
+        "optimized_sequence": optimized,
+        "stats": {
+            "original_cai": original_cai,
+            "optimized_cai": optimized_cai,
+            "improvement": f"{((optimized_cai - original_cai) / original_cai * 100):.1f}%",
+            "gc_content_original": gc_content_original,
+            "gc_content_optimized": gc_content_optimized
+        }
+    }
+
 def analyze_dna(dna):
     """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
     dna = ''.join(char for char in dna if not char.isspace())
@@ -123,6 +227,13 @@ def analyze_dna(dna):
 
     
     longest_orf = max(orfs, key=len)
+    # optimization analysis for different organisms
+    optimizations = {}
+    for organism in ['e_coli', 'human', 'yeast']:
+        try:
+            optimizations[organism] = optimize_sequence(longest_orf, organism)
+        except Exception as e:
+            optimizations[organism] = {"error": str(e)}
     protein = translate_dna(longest_orf)
     kozak_positions = find_kozak_sequences(dna)
     cai = calculate_cai(longest_orf)
@@ -144,7 +255,8 @@ def analyze_dna(dna):
         "gc_content": round(gc_content, 2),
         "nucleotide_frequency": nucleotide_freq,
         "sequence_length": len(dna),
-        "reverse_complement": reverse_complement(dna)
+        "reverse_complement": reverse_complement(dna),
+        "optimizations": optimizations
     }
 
 @app.route('/', methods=['GET', 'POST'])
@@ -370,6 +482,19 @@ def index():
             background-color: var(--error-color);
         }
 
+        details summary {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+        }
+
+        details > div {
+            margin-top: 0.5rem;
+            padding: 1rem;
+            border-radius: 0.375rem;
+            word-break: break-all;
+            font-family: 'Courier New', monospace;
+        }
+
         /* Responsive Design */
         @media (max-width: 768px) {
             .container {
@@ -428,6 +553,17 @@ def index():
                 background: #2d3748;
                 border-color: #4a5568;
                 color: var(--text-primary);
+            }
+
+             details summary {
+                background-color: #2d3748;
+                color: #90cdf4;
+            }
+
+            details > div {
+                background-color: #2d3748 !important;  /* Override the light mode background */
+                color: #e2e8f0 !important;  /* Light color for better visibility */
+                border: 1px solid #4a5568;
             }
 
             /* Footer links in dark mode */
@@ -585,6 +721,33 @@ def index():
                     <i class="fas fa-arrow-left mr-2"></i>Reverse Complement:
                 </div>
                 <div class="result-value">{{ result.reverse_complement }}</div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-microscope mr-2"></i>Expression Optimization:
+                </div>
+                <div class="result-value">
+                    {% for organism, opt in result.optimizations.items() %}
+                    <div class="mb-4">
+                        <h4 class="font-semibold mb-2">{{ organism|title }} Optimization:</h4>
+                        {% if opt.error %}
+                            <p class="text-red-500">{{ opt.error }}</p>
+                        {% else %}
+                            <p>Original CAI: {{ "%.3f"|format(opt.stats.original_cai) }}</p>
+                            <p>Optimized CAI: {{ "%.3f"|format(opt.stats.optimized_cai) }}</p>
+                            <p>Improvement: {{ opt.stats.improvement }}</p>
+                            <p>GC Content Change: {{ "%.1f"|format(opt.stats.gc_content_original) }}% → {{ "%.1f"|format(opt.stats.gc_content_optimized) }}%</p>
+                            <details class="mt-2">
+                                <summary class="cursor-pointer text-blue-500">View Optimized Sequence</summary>
+                                <div class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                    {{ opt.optimized_sequence }}
+                                </div>
+                            </details>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endif %}
         </div>
