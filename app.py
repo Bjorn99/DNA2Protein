@@ -42,6 +42,11 @@ def validate_dna(dna):
     valid_nucleotides = set('ATCG')
     return all(nucleotide in valid_nucleotides for nucleotide in dna)
 
+def reverse_complement(dna):
+    """Calculate the reverse complement of a DNA sequence."""
+    complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    return ''.join(complement.get(base, base) for base in reversed(dna.upper()))
+
 def find_orfs(dna):
     """Find all open reading frames in the given DNA sequence."""
     if len(dna) < 3:
@@ -138,7 +143,8 @@ def analyze_dna(dna):
         "signal_peptide": signal_peptide,
         "gc_content": round(gc_content, 2),
         "nucleotide_frequency": nucleotide_freq,
-        "sequence_length": len(dna)
+        "sequence_length": len(dna),
+        "reverse_complement": reverse_complement(dna)
     }
 
 @app.route('/', methods=['GET', 'POST'])
@@ -572,6 +578,13 @@ def index():
                     <i class="fas fa-ruler mr-2"></i>Sequence Length:
                 </div>
                 <div class="result-value">{{ result.sequence_length }} bp</div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-arrow-left mr-2"></i>Reverse Complement:
+                </div>
+                <div class="result-value">{{ result.reverse_complement }}</div>
             </div>
             {% endif %}
         </div>
