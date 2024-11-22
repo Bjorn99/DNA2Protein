@@ -772,6 +772,16 @@ files = [
 ]
 
 [[package]]
+name = "optional-django"
+version = "0.3.0"
+description = "Utils for providing optional support for django"
+optional = false
+python-versions = "*"
+files = [
+    {file = "optional-django-0.3.0.tar.gz", hash = "sha256:2cd56b864ecf88e420aa882209ca7849114f38bc7089344cc9e476ea91aeb010"},
+]
+
+[[package]]
 name = "packaging"
 version = "24.2"
 description = "Core utilities for Python packages"
@@ -902,6 +912,20 @@ files = [
 
 [package.extras]
 cli = ["click (>=5.0)"]
+
+[[package]]
+name = "react"
+version = "4.3.0"
+description = "Server-side rendering of React components with data from your Python system"
+optional = false
+python-versions = "*"
+files = [
+    {file = "react-4.3.0.tar.gz", hash = "sha256:d7455fa9d91bb9e8f9981d37308f8bf78fcdeaa5b4b99f94f3fda1bd68b7d19c"},
+]
+
+[package.dependencies]
+optional-django = "0.3.0"
+requests = ">=2.5.0"
 
 [[package]]
 name = "requests"
@@ -1168,4 +1192,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11"
-content-hash = "142d359c0a93f40a530a97287498adb3cc02197efa868850ebf861a4843e7cdc"
+content-hash = "96c30086e66d23af1ab076e0059f62cb865e8b7bf89d90431add30d2f39d760d"

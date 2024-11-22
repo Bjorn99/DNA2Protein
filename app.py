@@ -102,7 +102,8 @@ def predict_signal_peptide(protein):
 
 def analyze_dna(dna):
     """Analyze DNA sequence for ORFs, Kozak sequences, and translate to protein."""
-    dna = ''.join(dna.split()).upper()
+    dna = ''.join(char for char in dna if not char.isspace())
+    dna = dna.upper()
     
     if not validate_dna(dna):
         return {"error": "Invalid DNA sequence. Please use only A, T, C, and G."}
@@ -114,19 +115,30 @@ def analyze_dna(dna):
     orfs = find_orfs(dna)
     if not orfs:
         return {"error": "No open reading frames found."}
+
     
     longest_orf = max(orfs, key=len)
     protein = translate_dna(longest_orf)
     kozak_positions = find_kozak_sequences(dna)
     cai = calculate_cai(longest_orf)
     signal_peptide = predict_signal_peptide(protein)
+    gc_content = (dna.count('G') + dna.count('C')) / len(dna) * 100
+    nucleotide_freq = {
+        'A': dna.count('A'),
+        'T': dna.count('T'),
+        'G': dna.count('G'),
+        'C': dna.count('C')
+    }
     
     return {
         "longest_orf": longest_orf,
         "protein": protein,
         "kozak_positions": kozak_positions,
         "cai": cai,
-        "signal_peptide": signal_peptide
+        "signal_peptide": signal_peptide,
+        "gc_content": round(gc_content, 2),
+        "nucleotide_frequency": nucleotide_freq,
+        "sequence_length": len(dna)
     }
 
 @app.route('/', methods=['GET', 'POST'])
@@ -464,7 +476,6 @@ def index():
                        required 
                        class="input-field" 
                        placeholder="e.g., ATGCGATCGATCG"
-                       pattern="[ATCGatcg]+"
                        title="Please enter valid DNA sequence (A, T, C, G only)">
                 
                 <div class="sequence-validator">
@@ -536,6 +547,32 @@ def index():
                 </div>
                 <div class="result-value">{{ result.signal_peptide }}</div>
             </div>
+
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-percentage mr-2"></i>GC Content:
+                </div>
+                <div class="result-value">{{ result.gc_content }}%</div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-calculator mr-2"></i>Nucleotide Frequency:
+                </div>
+                <div class="result-value">
+                    A: {{ result.nucleotide_frequency.A }},
+                    T: {{ result.nucleotide_frequency.T }},
+                    G: {{ result.nucleotide_frequency.G }},
+                    C: {{ result.nucleotide_frequency.C }}
+                </div>
+            </div>
+
+            <div class="result-item">
+                <div class="result-label">
+                    <i class="fas fa-ruler mr-2"></i>Sequence Length:
+                </div>
+                <div class="result-value">{{ result.sequence_length }} bp</div>
+            </div>
             {% endif %}
         </div>
         {% endif %}
@@ -560,7 +597,7 @@ def index():
             const validatorText = document.querySelector('.validator-text');
 
             function validateSequence(sequence) {
-                const validChars = /^[ATCGatcg]+$/;
+                const validChars = /^[ATCGatcg\\s]+$/;
                 return validChars.test(sequence);
             }
 
