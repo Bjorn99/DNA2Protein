@@ -299,334 +299,88 @@ def index():
 
     return render_template_string('''   
         <!doctype html>
-<html lang="en">
+<html lang="en" class="dark">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DNA2Protein Analysis Tool</title>
+    <script src = "https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#2C3E50',
+                        secondary: '#34495E',
+                        accent: '#576574'
+                    },
+                    animation: {
+                        'dna-spin': 'spin 2s linear infinite',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        :root {
-            --primary-color: #2C3E50;
-            --secondary-color: #34495E;
-            --accent-color: #576574;
-            --success-color: #27ae60;
-            --error-color: #e74c3c;
-            --text-primary: #1a202c;
-            --text-secondary: #2d3748;
-            --text-light: #718096;
-            --text-dark: #2d3748;
+        @keyframes dna-spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
-
-        body {
-            background: linear-gradient(135deg, #f6f8fa 0%, #e9ecef 100%);
-            color: #2d3748;
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        }
-
-        .container {
-            max-width: 1000px;
-            margin: 2rem auto;
-            padding: 0 1.5rem;
-        }
-
-        .title {
-            font-size: 3.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-align: center;
-            margin: 2rem 0;
-            letter-spacing: -0.05em;
-        }
-
-        .input-form {
-            background: #2d3748;
-            bordere: 1px solid #4a5568;
-            padding: 2rem;
-            border-radius: 1rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            backdrop-filter: blur(10px);
-            margin-bottom: 2rem;
-        }
-
-        .input-field {
-            background: #1a202c;
-            border-color: #4a5568;
-            color: var(--text-primary);
-            width: 100%;
-            padding: 1rem;
-            border: 2px solid #E5E7EB;
-            border-radius: 0.75rem;
-            font-size: 1.1rem;
-            transition: all 0.2s ease;
-            margin-bottom: 1.5rem;
-            font-family: 'Courier New', monospace;
-        }
-
-        .input-field:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(44, 62, 80, 0.2);
-            outline: none;
-        }
-
-        .submit-button {
-            position: relative;
-            overflow: hidden;
-            background: linear-gradient(135deg, #2C3E50 0%, #34495E 100%);
-            color: white;
-            font-weight: 600;
-            padding: 1rem 2.5rem;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            transition: all 0.3s ease;
-            width: 100%;
-            border: none;
-            cursor: pointer;
-        }
-
-        .submit-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 15px rgba(44, 62, 80, 0.3);
-            background: linear-gradient(135deg, #34495E 0%, #2C3E50 100%);
-        }
-
-        .submit-button i {
-            margin-right: 0.75rem;
-            transition: transform 0.3s ease;
-        }
-
-        .submit-button:hover i {
+        
+        .dna-spin {
             animation: dna-spin 2s linear infinite;
         }
 
-        @keyframes dna-spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .result-box {
-            background: #2d3748;
-            border: 1px solid #4a5568;
-            border-radius: 1rem;
-            padding: 2rem;
-            margin-top: 2rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .result-box:hover {
-            transform: translateY(-5px);
-        }
-
-        .result-item {
-            background: #1a202c;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1.5rem;
-            transition: all 0.2s ease;
-        }
-
-        .result-item:hover {
-            background: #F9FAFB;
-            transform: scale(1.01);
-        }
-
-        .result-label {
-            backgroung: #2d3748;
-            color: #1a202c;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            font-size: 1.1rem;
-        }
-
-        .result-label:hover {
-            color: black;
-        }
-
         .result-value {
-            font-family: 'Courier New', monospace;
-            background: #4a5568;
-            color: var(--text-primary);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            word-break: break-all;
-            border: 1px solid #E5E7EB;
+            scrollbar-width: thin;
+            scrollbar-color: #4a5568 #1a202c;
         }
-
-        .sequence-validator {
-            color: var(--text-secondary);s
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-top: 0.5rem;
-            margin-bottom: 1rem;
-            font-size: 0.9rem;
+        
+        .result-value::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
         }
-
-        .validator-icon {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
+        
+        .result-value::-webkit-scrollbar-track {
+            background: #1a202c;
         }
-
-        .validator-icon.valid {
-            background-color: var(--success-color);
-        }
-
-        .validator-icon.invalid {
-            background-color: var(--error-color);
-        }
-
-        details summary {
-            padding: 0.5rem;
-            border-radius: 0.375rem;
-        }
-
-        details > div {
-            margin-top: 0.5rem;
-            padding: 1rem;
-            border-radius: 0.375rem;
-            word-break: break-all;
-            font-family: 'Courier New', monospace;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                margin: 1rem auto;
-            }
-
-            .title {
-                font-size: 2.5rem;
-            }
-
-            .input-form, .result-box {
-                padding: 1.5rem;
-            }
-        }
-
-        /* Dark Mode Improvements */
-        @media (prefers-color-scheme: dark) {
-            :root {
-                --text-primary: #f7fafc;
-                --text-secondary: #e2e8f0;
-                --text-light: #cbd5e0;
-            }
-
-            body {
-                background: linear-gradient(135deg, #1a202c 0%, #2d3748 100%);
-                color: var(--text-primary);
-            }
-
-            .title {
-                /* Lighter gradient for dark mode */
-                background: linear-gradient(135deg, #f7fafc 0%, #e2e8f0 100%);
-                -webkit-background-clip: text;
-                -webkit-text-fill-color: transparent;
-            }
-
-            .input-form, .result-box {
-                background: #2d3748;
-                border: 1px solid #4a5568;
-            }
-
-            .input-field {
-                background: #1a202c;
-                border-color: #4a5568;
-                color: var(--text-primary);
-            }
-
-            .result-item {
-                background: #1a202c;
-            }
-
-            .result-label {
-                color: #e2e8f0;  /* Lighter color for dark mode */
-            }
-
-            .result-value {
-                background: #2d3748;
-                border-color: #4a5568;
-                color: var(--text-primary);
-            }
-
-             details summary {
-                background-color: #2d3748;
-                color: #90cdf4;
-            }
-
-            details > div {
-                background-color: #2d3748 !important;  /* Override the light mode background */
-                color: #e2e8f0 !important;  /* Light color for better visibility */
-                border: 1px solid #4a5568;
-            }
-
-            /* Footer links in dark mode */
-            footer a {
-                color: #90cdf4 !important;  /* Lighter blue for better visibility */
-            }
-
-            footer a:hover {
-                color: green !important;
-            }
-
-            /* Validator text colors for dark mode */
-            .sequence-validator {
-                color: var(--text-light);
-            }
-
-            .validator-text.valid {
-                color: #68d391 !important;  /* Lighter green for dark mode */
-            }
-
-            .validator-text.invalid {
-                color: #fc8181 !important;  /* Lighter red for dark mode */
-            }
-        }
-
-        /* Error message improvements */
-        .bg-red-100 {
-            background-color: #fff5f5;
-            color: #c53030;
-        }
-
-        @media (prefers-color-scheme: dark) {
-            .bg-red-100 {
-                background-color: #742a2a;
-                color: #feb2b2;
-                border-color: #fc8181;
-            }
+        
+        .result-value::-webkit-scrollbar-thumb {
+            background-color: #4a5568;
+            border-radius: 4px;
         }
 
     </style>
 </head>
-<body>
-    <div class="container">
-        <h1 class="title">DNA2PROTEIN</h1>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen text-gray-800 dark:text-gray-200">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <h1 class="text-5xl font-extrabold text-center mb-12 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">DNA2PROTEIN</h1>
         
-        <div class="input-form">
-            <form method="post" id="dna-form">
-                <label for="dna_sequence" class="block text-lg font-semibold mb-2">Enter DNA Sequence:</label>
-                <input type="text" 
-                       id="dna_sequence" 
-                       name="dna_sequence" 
-                       required 
-                       class="input-field" 
-                       placeholder="e.g., ATGCGATCGATCG"
-                       title="Please enter valid DNA sequence (A, T, C, G only)">
+        <!-- Input Form -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 mb-8">
+            <form method="post" id="dna-form" class="space-y-6">
+                <div>
+                    <label for="dna_sequence" class="block text-lg font-semibold mb-2">Enter DNA Sequence:</label>
+                    <input type="text" 
+                        id="dna_sequence" 
+                        name="dna_sequence" 
+                        required 
+                        class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg font-mono focus:ring-2 focus:ring-primary focus:border-transparent transition-all" 
+                        placeholder="e.g., ATGCGATCGATCG"
+                        title="Please enter valid DNA sequence (A, T, C, G only)">
+                </div>
                 
-                <div class="sequence-validator">
-                    <div class="validator-icon"></div>
+                
+                <div class="flex items-center gap-2 text-sm" id="sequence-validator">
+                    <div class="w-3 h-3 rounded-full bg-gray-300"></div>
                     <span class="validator-text">Enter a valid DNA sequence</span>
                 </div>
 
-                <button type="submit" class="submit-button">
-                    <i class="fas fa-dna"></i>
+                <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-4 px-6 rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-3">
+                    <i class="fas fa-dna hover:animate-dna-spin"></i>
                     Analyze DNA
                 </button>
             </form>
@@ -639,9 +393,9 @@ def index():
         </div>
         {% endif %}
 
-        {% if result %}
-        <div class="result-box">
-            <h2 class="text-2xl font-bold mb-6 pb-2 border-b-2 border-gray-200">Analysis Results</h2>
+        {% if result and not result.error %}
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 space-y-6">
+            <h2 class="text-2xl font-bold border-b dark:border-gray-700 pb-4">Analysis Results</h2>
             
             {% if result.error %}
             <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
@@ -649,25 +403,38 @@ def index():
                 <span class="block sm:inline">{{ result.error }}</span>
             </div>
             {% else %}
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-dna mr-2"></i>Longest Open Reading Frame (ORF):
+            <!-- Result Items -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-dna mr-2"></i>
+                        <span>Longest Open Reading Frame (ORF):</span>
+                    </div>
+                    <!-- Result Value -->
+                    <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
+                        {{ result.longest_orf }}
+                    </div>
                 </div>
-                <div class="result-value">{{ result.longest_orf }}</div>
+            
+            <!-- Result Items -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">                    <i class="fas fa-project-diagram mr-2"></i>
+                    <span>Translated Protein:</span>
+                </div>
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.protein }}</div>
             </div>
             
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-project-diagram mr-2"></i>Translated Protein:
+            <!-- Result Items -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-map-marker-alt mr-2"></i>
+                    <span>Kozak Sequence Positions:</span>
                 </div>
-                <div class="result-value">{{ result.protein }}</div>
-            </div>
-            
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-map-marker-alt mr-2"></i>Kozak Sequence Positions:
-                </div>
-                <div class="result-value">
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
                     {% if result.kozak_positions %}
                         {{ result.kozak_positions|join(', ') }}
                     {% else %}
@@ -676,32 +443,52 @@ def index():
                 </div>
             </div>
             
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-chart-line mr-2"></i>Codon Adaptation Index (CAI):
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-chart-line mr-2"></i>
+                    <span>Codon Adaptation Index (CAI):</span>
                 </div>
-                <div class="result-value">{{ "%.2f"|format(result.cai) }}</div>
-            </div>
-            
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-microscope mr-2"></i>Signal Peptide Prediction:
-                </div>
-                <div class="result-value">{{ result.signal_peptide }}</div>
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ "%.2f"|format(result.cai) }}</div>
             </div>
 
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-percentage mr-2"></i>GC Content:
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-microscope mr-2"></i>
+                    <span>Signal Peptide Prediction:</span>
                 </div>
-                <div class="result-value">{{ result.gc_content }}%</div>
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.signal_peptide }}</div>
             </div>
 
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-calculator mr-2"></i>Nucleotide Frequency:
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-percentage mr-2"></i>
+                    <span>GC Content:</span>
                 </div>
-                <div class="result-value">
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.gc_content }}%</div>
+            </div>
+
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-calculator mr-2"></i>
+                    <span>Nucleotide Frequency:</span>
+                </div>
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
                     A: {{ result.nucleotide_frequency.A }},
                     T: {{ result.nucleotide_frequency.T }},
                     G: {{ result.nucleotide_frequency.G }},
@@ -709,25 +496,40 @@ def index():
                 </div>
             </div>
 
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-ruler mr-2"></i>Sequence Length:
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-ruler mr-2"></i>
+                    </span>Sequence Length:</span>
                 </div>
-                <div class="result-value">{{ result.sequence_length }} bp</div>
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.sequence_length }} bp</div>
             </div>
 
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-arrow-left mr-2"></i>Reverse Complement:
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    <span>Reverse Complement:</span>
                 </div>
-                <div class="result-value">{{ result.reverse_complement }}</div>
+
+                <!-- Result Values -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.reverse_complement }}</div>
             </div>
 
-            <div class="result-item">
-                <div class="result-label">
-                    <i class="fas fa-microscope mr-2"></i>Expression Optimization:
+            <!-- Result Item -->
+            <div class="space-y-6">
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-microscope mr-2"></i>
+                    <span>Expression Optimization:</span>
                 </div>
-                <div class="result-value">
+
+                <!-- Result Value -->
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
                     {% for organism, opt in result.optimizations.items() %}
                     <div class="mb-4">
                         <h4 class="font-semibold mb-2">{{ organism|title }} Optimization:</h4>
@@ -740,8 +542,10 @@ def index():
                             <p>GC Content Change: {{ "%.1f"|format(opt.stats.gc_content_original) }}% → {{ "%.1f"|format(opt.stats.gc_content_optimized) }}%</p>
                             <details class="mt-2">
                                 <summary class="cursor-pointer text-blue-500">View Optimized Sequence</summary>
-                                <div class="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                                <div class="font-semibold mb-3 flex items-center gap-2 overflow-x-auto">
                                     {{ opt.optimized_sequence }}
+                                </div>
                                 </div>
                             </details>
                         {% endif %}
@@ -753,8 +557,8 @@ def index():
         </div>
         {% endif %}
 
-        <footer class="mt-8 text-center">
-            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="hover:text-green-900 dark:text-white-400" target="_blank">Bjorn99</a></p>
+        <footer class="mt-12 text-center text-gray-600 dark:text-gray-400">
+            <p class="mb-2">Created by <a href="https://github.com/Bjorn99" class="hover:text-green-500 dark:text-white-400" target="_blank">Bjorn99</a></p>
             <p>
                 <a href="https://github.com/Bjorn99/DNA2Protein" class="inline-flex items-center gap-2 text-white-800 hover:text-white-900 dark:text-white-400" target="_blank">
                     <i class="fab fa-github"></i>
@@ -766,24 +570,21 @@ def index():
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const form = document.getElementById('dna-form');
             const input = document.getElementById('dna_sequence');
-            const validator = document.querySelector('.sequence-validator');
-            const validatorIcon = document.querySelector('.validator-icon');
-            const validatorText = document.querySelector('.validator-text');
+            const validator = document.getElementById('sequence-validator');
+            const indicator = validator.querySelector('div');
+            const text = document.querySelector('span');
 
             function validateSequence(sequence) {
-                const validChars = /^[ATCGatcg\\s]+$/;
-                return validChars.test(sequence);
+                return /^[ATCGatcg\\s]+$/.test(sequence)
             }
 
             input.addEventListener('input', function() {
-                const sequence = this.value;
-                const isValid = validateSequence(sequence);
+                const isValid = validateSequence(this.value);
                 
-                validatorIcon.className = 'validator-icon ' + (isValid ? 'valid' : 'invalid');
-                validatorText.textContent = isValid ? 'Valid DNA sequence' : 'Invalid characters detected';
-                validatorText.style.color = isValid ? 'var(--success-color)' : 'var(--error-color)';
+                validator.className = `w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`;
+                text.textContent = isValid ? 'Valid' : 'Invalid';
+                text.className = isValid ? 'text-green-600 semi-bold dark:text-green-400' : 'text-red-600 dark:text-red-400';
             });
         });
     </script>
