@@ -381,7 +381,7 @@ def index():
 
                 <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-4 px-6 rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-3">
                     <i class="fas fa-dna hover:animate-dna-spin"></i>
-                    Analyze DNA
+                    Analyze
                 </button>
             </form>
         </div>
