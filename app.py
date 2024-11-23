@@ -376,7 +376,7 @@ def index():
                 
                 <div class="flex items-center gap-2 text-sm" id="sequence-validator">
                     <div class="w-3 h-3 rounded-full bg-gray-300"></div>
-                    <span class="validator-text">Enter a valid DNA sequence</span>
+                    <span>Enter a valid DNA sequence</span>
                 </div>
 
                 <button type="submit" class="w-full bg-gradient-to-r from-primary to-secondary text-white font-semibold py-4 px-6 rounded-lg hover:opacity-90 transition-all flex items-center justify-center gap-3">
@@ -574,7 +574,7 @@ def index():
             const input = document.getElementById('dna_sequence');
             const validator = document.getElementById('sequence-validator');
             const indicator = validator.querySelector('div');
-            const text = document.querySelector('span');
+            const text = validator.querySelector('span');
 
             function validateSequence(sequence) {
                 return /^[ATCGatcg\\s]+$/.test(sequence)
@@ -583,8 +583,8 @@ def index():
             input.addEventListener('input', function() {
                 const isValid = validateSequence(this.value);
                 
-                validator.className = `w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`;
-                text.textContent = isValid ? 'Valid' : 'Invalid';
+                indicator.className = `w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`;
+                text.textContent = isValid ? 'Valid Sequence' : 'Invalid Sequence';
                 text.className = isValid ? 'text-green-600 semi-bold dark:text-green-400' : 'text-red-600 dark:text-red-400';
             });
         });
