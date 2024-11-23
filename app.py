@@ -306,7 +306,7 @@ def index():
     <title>DNA2Protein Analysis Tool</title>
     <script src = "https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css">
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -407,7 +407,7 @@ def index():
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
-                        <i class="fas fa-dna mr-2"></i>
+                        <i class="fas fa-dna mr-2 hover:animate-dna-spin"></i>
                         <span>Longest Open Reading Frame (ORF):</span>
                     </div>
                     <!-- Result Value -->
@@ -419,7 +419,8 @@ def index():
             <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
-                    <div class="font-semibold mb-3 flex items-center gap-2">                    <i class="fas fa-project-diagram mr-2"></i>
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-project-diagram mr-2"></i>
                     <span>Translated Protein:</span>
                 </div>
                 <!-- Result Value -->
@@ -443,7 +444,7 @@ def index():
                 </div>
             </div>
             
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -455,7 +456,7 @@ def index():
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ "%.2f"|format(result.cai) }}</div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -467,7 +468,7 @@ def index():
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.signal_peptide }}</div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -479,7 +480,7 @@ def index():
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.gc_content }}%</div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -496,7 +497,7 @@ def index():
                 </div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -508,7 +509,7 @@ def index():
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.sequence_length }} bp</div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
@@ -520,7 +521,7 @@ def index():
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.reverse_complement }}</div>
             </div>
 
-            <!-- Result Item -->
+            <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
                     <div class="font-semibold mb-3 flex items-center gap-2">
