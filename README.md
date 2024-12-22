@@ -37,7 +37,7 @@ The **DNA2Protein application** is a web-based tool that leverages Python's Flas
 
 - This feature helps identify proteins that may be secreted or targeted to specific cellular compartments.
 
-## Limitaions
+## Limitations
 
 While this application offers several valuable features for DNA sequence analysis, there are certain limitations:
 
