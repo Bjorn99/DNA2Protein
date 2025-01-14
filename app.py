@@ -91,18 +91,98 @@ CODON_USAGE_TABLES = {
     }
 }
 
+def parse_fasta(input_text):
+    """Parse FASTA format text and return a dictionary of sequences."""
+    sequences = {}
+    current_header = ""
+    current_sequence = []
+    
+    # Split the input into lines and process each line
+    lines = [line.strip() for line in input_text.strip().split('\n')]
+    
+    for line in lines:
+        if not line:  # Skip empty lines
+            continue
+        if line.startswith('>'):  # FASTA header line
+            # If we were building a sequence, save it before starting a new one
+            if current_header and current_sequence:
+                sequences[current_header] = ''.join(current_sequence)
+            # Start new sequence
+            current_header = line[1:].strip()  # Remove '>' and whitespace
+            current_sequence = []
+        else:  # Sequence line
+            # Remove any whitespace and convert to uppercase
+            current_sequence.append(line.strip().upper())
+    
+    if current_header and current_sequence:
+        sequences[current_header] = ''.join(current_sequence)
+    
+    return sequences
+
+def process_input_sequence(input_text):
+    input_text = input_text.strip()
+    
+    if input_text.startswith('>'):
+        # This is FASTA format
+        sequences = parse_fasta(input_text)
+        if not sequences:
+            raise ValueError("Invalid FASTA format")
+        header, sequence = next(iter(sequences.items()))
+        return sequence, header
+    else:
+        # This is a raw sequence
+        sequence = ''.join(input_text.split())  # Remove all whitespace
+        return sequence, None
+
 # Kozak consensus sequence
 kozak_regex = re.compile(r'(G|A)NN(A|G)TGATG')
 
 def validate_dna(dna):
     """Validate the DNA sequence."""
     valid_nucleotides = set('ATCG')
+    dna = ''.join(dna.split()).upper()
     return all(nucleotide in valid_nucleotides for nucleotide in dna)
 
 def reverse_complement(dna):
     """Calculate the reverse complement of a DNA sequence."""
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
     return ''.join(complement.get(base, base) for base in reversed(dna.upper()))
+
+def calculate_sequence_complexity(dna):
+    """Calculate sequence complexity using k-mer diversity."""
+    k = 3  # using trinucleotides
+    kmers = [dna[i:i+k] for i in range(len(dna)-k+1)]
+    unique_kmers = len(set(kmers))
+    max_possible = min(len(kmers), 4**k)  # 4^k is max possible k-mers for DNA
+    return (unique_kmers / max_possible) * 100
+
+def analyze_repeat_regions(dna):
+    """Identify repeat regions in DNA sequence."""
+    min_repeat_length = 4
+    repeats = []
+    
+    for i in range(len(dna)-min_repeat_length):
+        for j in range(min_repeat_length, min(20, len(dna)-i)):
+            pattern = dna[i:i+j]
+            if pattern in dna[i+j:]:
+                repeats.append({
+                    'pattern': pattern,
+                    'length': len(pattern),
+                    'position': i
+                })
+    
+    # Remove overlapping repeats, keeping the longest ones
+    filtered_repeats = []
+    used_positions = set()
+    
+    for repeat in sorted(repeats, key=lambda x: -x['length']):
+        pos = repeat['position']
+        if not any(pos in range(p, p+r['length']) 
+                  for p, r in zip(used_positions, filtered_repeats)):
+            filtered_repeats.append(repeat)
+            used_positions.add(pos)
+            
+    return filtered_repeats[:10]  # Return top 10 repeats
 
 def find_orfs(dna):
     """Find all open reading frames in the given DNA sequence."""
@@ -156,11 +236,92 @@ def calculate_cai(sequence: str) -> float:
         return cai_sum / len(codons)
 
 def predict_signal_peptide(protein):
-    """Simple prediction of signal peptide presence based on N-terminal sequence."""
-    n_terminal = protein[:30]  # Consider first 30 amino acids
-    if n_terminal.count('L') + n_terminal.count('A') + n_terminal.count('V') > 10:
-        return "Potential signal peptide detected"
-    return "No signal peptide detected"
+    """
+    Advanced signal peptide prediction using multiple features and position-specific scoring.
+    
+    Features considered:
+    - N-region: Positive charges in first 5-8 residues
+    - H-region: Hydrophobic core (8-12 residues)
+    - C-region: Polar/small residues and cleavage site motifs
+    """
+    if len(protein) < 15:  # Minimum length for signal peptide
+        return {"prediction": "No signal peptide detected", "confidence": 0, "details": "Sequence too short"}
+        
+    # Amino acid properties
+    hydrophobic = set('AILMFWV')
+    charged_positive = set('RK')
+    charged_negative = set('DE')
+    small_polar = set('GSTNQ')
+    
+    # Feature scores
+    scores = {
+        'n_region': 0,  # N-terminal charged region
+        'h_region': 0,  # Hydrophobic core
+        'c_region': 0,  # C-terminal region
+        'cleavage': 0   # Cleavage site
+    }
+    
+    # 1. N-region analysis (first 8 residues)
+    n_region = protein[:8]
+    n_positive_charges = sum(aa in charged_positive for aa in n_region)
+    n_negative_charges = sum(aa in charged_negative for aa in n_region)
+    scores['n_region'] = (n_positive_charges - n_negative_charges) * 0.5
+    
+    # 2. H-region analysis (residues 8-20)
+    h_region = protein[8:20]
+    hydrophobic_stretch = 0
+    max_hydrophobic_stretch = 0
+    
+    for aa in h_region:
+        if aa in hydrophobic:
+            hydrophobic_stretch += 1
+            max_hydrophobic_stretch = max(max_hydrophobic_stretch, hydrophobic_stretch)
+        else:
+            hydrophobic_stretch = 0
+    
+    scores['h_region'] = max_hydrophobic_stretch * 0.3
+    
+    # 3. C-region analysis (residues 20-30)
+    if len(protein) >= 30:
+        c_region = protein[20:30]
+        small_polar_count = sum(aa in small_polar for aa in c_region)
+        scores['c_region'] = small_polar_count * 0.2
+        
+        # 4. Cleavage site motif analysis
+        # Common cleavage site motifs: A-X-A, G-X-A, etc.
+        for i in range(len(c_region)-3):
+            motif = c_region[i:i+3]
+            if (motif[0] in 'AG' and motif[2] in 'A'):
+                scores['cleavage'] += 1.0
+    
+    # Calculate total score and confidence
+    total_score = sum(scores.values())
+    max_possible_score = 5.0  # Theoretical maximum score
+    confidence = (total_score / max_possible_score) * 100
+    
+    # Generate detailed analysis
+    details = {
+        'n_region_score': scores['n_region'],
+        'h_region_score': scores['h_region'],
+        'c_region_score': scores['c_region'],
+        'cleavage_score': scores['cleavage'],
+        'hydrophobic_core_length': max_hydrophobic_stretch,
+        'positive_charges_n_term': n_positive_charges
+    }
+    
+    # Make prediction
+    if confidence >= 60:
+        prediction = "Strong signal peptide detected"
+    elif confidence >= 40:
+        prediction = "Potential signal peptide detected"
+    else:
+        prediction = "No signal peptide detected"
+
+    return {
+        "prediction": prediction,
+        "confidence": round(confidence, 2),
+        "details": details
+    }
 
 def optimize_sequence(sequence, organism):
     """Optimize DNA sequence for expression in different organisms."""
@@ -220,6 +381,9 @@ def analyze_dna(dna):
     """Check for continuous strings of one nucleotide"""
     if len(set(dna)) == 1:
         return {"error": "DNA sequence consists of a single nucleotide repeated."}
+
+    complexity = calculate_sequence_complexity(dna)
+    repeats = analyze_repeat_regions(dna)
     
     orfs = find_orfs(dna)
     if not orfs:
@@ -237,7 +401,7 @@ def analyze_dna(dna):
     protein = translate_dna(longest_orf)
     kozak_positions = find_kozak_sequences(dna)
     cai = calculate_cai(longest_orf)
-    signal_peptide = predict_signal_peptide(protein)
+    signal_peptide_analysis = predict_signal_peptide(protein)
     gc_content = (dna.count('G') + dna.count('C')) / len(dna) * 100
     nucleotide_freq = {
         'A': dna.count('A'),
@@ -251,39 +415,50 @@ def analyze_dna(dna):
         "protein": protein,
         "kozak_positions": kozak_positions,
         "cai": cai,
-        "signal_peptide": signal_peptide,
+        "signal_peptide": signal_peptide_analysis["prediction"],
+        "signal_peptide_details": signal_peptide_analysis["details"],
+        "signal_peptide_confidence": signal_peptide_analysis["confidence"],
         "gc_content": round(gc_content, 2),
         "nucleotide_frequency": nucleotide_freq,
         "sequence_length": len(dna),
         "reverse_complement": reverse_complement(dna),
-        "optimizations": optimizations
+        "optimizations": optimizations,
+        "sequence_complexity": round(complexity, 2),
+        "repeat_regions": repeats
     }
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     result = None
     error = None
+    sequence_header = None
     if request.method == "POST":
         try:
-            # Check if form data exists
             if 'dna_sequence' not in request.form:
                 raise ValueError("No DNA sequence provided")
                 
             # Get and sanitize input
-            dna_sequence = request.form['dna_sequence'].strip()
+            input_text = request.form['dna_sequence'].strip()
             
             # Validate input length
-            if not dna_sequence:
-                raise ValueError("DNA sequence cannot be empty")
-            
-            # if len(dna_sequence) > 10000:  # Adjust limit as needed
-            #     raise ValueError("DNA sequence is too long (maximum 10000 bases)")
-                
-            # basic XSS protection
-            dna_sequence = re.sub(r'[<>]', '', dna_sequence)
+            if not input_text:
+                raise ValueError("Sequence cannot be empty")
             
             # Process the sequence
-            result = analyze_dna(dna_sequence)
+            try:
+                sequence, header = process_input_sequence(input_text)
+                if header:
+                    sequence_header = header
+            except ValueError as e:
+                raise ValueError(f"Invalid sequence format: {str(e)}") from e
+            
+            # basic XSS protection
+            sequence = re.sub(r'[<>]', '', sequence)
+            
+            # Process the sequence
+            result = analyze_dna(sequence)
+            if sequence_header:
+                result["sequence_header"] = sequence_header
             
             # Handle analysis errors
             if 'error' in result:
@@ -294,8 +469,8 @@ def index():
             error = str(e)
         except Exception as e:
             error = "An unexpected error occurred. Please try again."
-            # Log the actual error for debugging
-            app.logger.error(f"Error processing DNA sequence: {str(e)}")
+            app.logger.error(f"Error processing sequence: {str(e)}")
+
 
     return render_template_string('''   
         <!doctype html>
@@ -306,7 +481,9 @@ def index():
     <title>DNA2Protein Analysis Tool</title>
     <script src = "https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -353,6 +530,11 @@ def index():
             border-radius: 4px;
         }
 
+        #nucleotideChart {
+            min-height: 300px;
+            width: 100%;
+    }
+
     </style>
 </head>
 <body class="bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 min-h-screen text-gray-800 dark:text-gray-200">
@@ -364,15 +546,18 @@ def index():
             <form method="post" id="dna-form" class="space-y-6">
                 <div>
                     <label for="dna_sequence" class="block text-lg font-semibold mb-2">Enter DNA Sequence:</label>
-                    <input type="text" 
+                    <div class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                        Accepts raw sequence or FASTA format (e.g., >sequence_name\nATGC...)
+                    </div>
+                    <textarea
                         id="dna_sequence" 
                         name="dna_sequence" 
                         required 
+                        rows="6"
                         class="w-full p-4 bg-gray-50 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg font-mono focus:ring-2 focus:ring-primary focus:border-transparent transition-all" 
-                        placeholder="e.g., ATGCGATCGATCG"
-                        title="Please enter valid DNA sequence (A, T, C, G only)">
+                        placeholder=">sequence_name&#10;ATGCGATCGATCG"
+                    ></textarea>
                 </div>
-                
                 
                 <div class="flex items-center gap-2 text-sm" id="sequence-validator">
                     <div class="w-3 h-3 rounded-full bg-gray-300"></div>
@@ -397,12 +582,34 @@ def index():
         <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 space-y-6">
             <h2 class="text-2xl font-bold border-b dark:border-gray-700 pb-4">Analysis Results</h2>
             
-            {% if result.error %}
-            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-                <strong class="font-bold">Error: </strong>
-                <span class="block sm:inline">{{ result.error }}</span>
+            {% if result.sequence_header %}
+            <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                <div class="font-semibold mb-3 flex items-center gap-2">
+                    <i class="fas fa-tag mr-2"></i>
+                    <span>Sequence Name:</span>
+                </div>
+                <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
+                    {{ result.sequence_header }}
+                </div>
             </div>
-            {% else %}
+            {% endif %}
+
+            <!-- Result Items -->
+            <div class="space-y-6">
+                
+                <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                    <div class="font-semibold mb-3 flex items-center gap-2">
+                        <i class="fas fa-chart-pie mr-2"></i>
+                        <span>Nucleotide Composition:</span>
+                    </div>
+                    <div style="height: 300px; position: relative;">
+                        <canvas id="nucleotideChart"></canvas>
+                    </div>
+                </div>
+
+                
+            </div>
+
             <!-- Result Items -->
             <div class="space-y-6">
                 <div class="result-item bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
@@ -410,6 +617,10 @@ def index():
                         <i class="fas fa-dna mr-2 hover:animate-dna-spin"></i>
                         <span>Longest Open Reading Frame (ORF):</span>
                     </div>
+                    <button onclick="copyToClipboard('{{ result.longest_orf }}', this)" 
+                            class="text-gray-500 hover:text-gray-700 transition-colors">
+                        <i class="fas fa-copy"></i>
+                    </button>
                     <!-- Result Value -->
                     <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
                         {{ result.longest_orf }}
@@ -423,6 +634,10 @@ def index():
                     <i class="fas fa-project-diagram mr-2"></i>
                     <span>Translated Protein:</span>
                 </div>
+                <button onclick="copyToClipboard('{{ result.protein }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.protein }}</div>
             </div>
@@ -434,6 +649,12 @@ def index():
                     <i class="fas fa-map-marker-alt mr-2"></i>
                     <span>Kozak Sequence Positions:</span>
                 </div>
+
+                <button onclick="copyToClipboard('{{ result.kozak_positions|join(', ') }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
+
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
                     {% if result.kozak_positions %}
@@ -452,6 +673,11 @@ def index():
                     <span>Codon Adaptation Index (CAI):</span>
                 </div>
 
+                <button onclick="copyToClipboard('{{ result.cai }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
+
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ "%.2f"|format(result.cai) }}</div>
             </div>
@@ -463,6 +689,11 @@ def index():
                     <i class="fas fa-microscope mr-2"></i>
                     <span>Signal Peptide Prediction:</span>
                 </div>
+
+                <button onclick="copyToClipboard('{{ result.signal_peptide }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
 
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.signal_peptide }}</div>
@@ -476,6 +707,11 @@ def index():
                     <span>GC Content:</span>
                 </div>
 
+                <button onclick="copyToClipboard('{{ result.gc_content }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
+
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.gc_content }}%</div>
             </div>
@@ -487,6 +723,14 @@ def index():
                     <i class="fas fa-calculator mr-2"></i>
                     <span>Nucleotide Frequency:</span>
                 </div>
+
+                <button onclick="copyToClipboard('{{ result.nucleotide_frequency.A }},
+                    {{ result.nucleotide_frequency.T }},
+                    {{ result.nucleotide_frequency.G }},
+                    {{ result.nucleotide_frequency.C }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
 
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
@@ -505,6 +749,11 @@ def index():
                     </span>Sequence Length:</span>
                 </div>
 
+                <button onclick="copyToClipboard('{{ result.sequence_length }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
+
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.sequence_length }} bp</div>
             </div>
@@ -517,6 +766,11 @@ def index():
                     <span>Reverse Complement:</span>
                 </div>
 
+                <button onclick="copyToClipboard('{{ result.reverse_complement }}', this)" 
+                        class="text-gray-500 hover:text-gray-700 transition-colors">
+                    <i class="fas fa-copy"></i>
+                </button>
+
                 <!-- Result Values -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">{{ result.reverse_complement }}</div>
             </div>
@@ -528,6 +782,8 @@ def index():
                     <i class="fas fa-microscope mr-2"></i>
                     <span>Expression Optimization:</span>
                 </div>
+
+                
 
                 <!-- Result Value -->
                 <div class="font-mono bg-white dark:bg-gray-800 p-4 rounded-lg overflow-x-auto">
@@ -553,8 +809,6 @@ def index():
                     </div>
                     {% endfor %}
                 </div>
-            </div>
-            {% endif %}
         </div>
         {% endif %}
 
@@ -570,25 +824,131 @@ def index():
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const input = document.getElementById('dna_sequence');
-            const validator = document.getElementById('sequence-validator');
-            const indicator = validator.querySelector('div');
-            const text = validator.querySelector('span');
+    document.addEventListener('DOMContentLoaded', function() {
+        const input = document.getElementById('dna_sequence');
+        const validator = document.getElementById('sequence-validator');
+        const indicator = validator.querySelector('div');
+        const text = validator.querySelector('span');
 
-            function validateSequence(sequence) {
-                return /^[ATCGatcg\\s]+$/.test(sequence)
+        function validateSequence(sequence) {
+            if (!sequence) {
+                return true;  // Empty is valid initially
             }
 
-            input.addEventListener('input', function() {
-                const isValid = validateSequence(this.value);
+            // Handle FASTA format
+            if (sequence.startsWith('>')) {
+                // Split into lines and filter out empty lines
+                const lines = sequence.split('\n').filter(line => line.trim());
+                if (lines.length < 2) return true;  // Only header is present, still valid
                 
-                indicator.className = `w-3 h-3 rounded-full ${isValid ? 'bg-green-500' : 'bg-red-500'}`;
-                text.textContent = isValid ? 'Valid Sequence' : 'Invalid Sequence';
-                text.className = isValid ? 'text-green-600 semi-bold dark:text-green-400' : 'text-red-600 dark:text-red-400';
+                // Remove the header line and join the rest
+                const dnaSequence = lines.slice(1).join('').replace(/\s+/g, '');
+                return /^[ATCGatcg]+$/.test(dnaSequence);
+            }
+
+            // For regular sequence, just remove whitespace and check
+            const cleanSequence = sequence.replace(/\s+/g, '');
+            return /^[ATCGatcg]+$/.test(cleanSequence);
+        }
+
+        if (input && validator) {
+            input.addEventListener('input', function() {
+                const trimmedValue = this.value.trim();
+                const isValid = validateSequence(trimmedValue);
+
+                if (!trimmedValue) {
+                    // Empty state
+                    indicator.className = 'w-3 h-3 rounded-full bg-gray-300';
+                    text.textContent = 'Enter a DNA sequence';
+                    text.className = 'text-gray-600 dark:text-gray-400';
+                } else {
+                    // Valid or invalid state
+                    if (isValid) {
+                        indicator.className = 'w-3 h-3 rounded-full bg-green-500';
+                        text.textContent = 'Valid sequence';
+                        text.className = 'text-green-600 dark:text-green-400';
+                    } else {
+                        indicator.className = 'w-3 h-3 rounded-full bg-red-500';
+                        text.textContent = 'Invalid sequence';
+                        text.className = 'text-red-600 dark:text-red-400';
+                    }
+                }
             });
-        });
-    </script>
+            
+            // Initial validation state
+            input.dispatchEvent(new Event('input'));
+        }
+    });
+</script>
+
+<script>
+    // Separate chart initialization
+    document.addEventListener('DOMContentLoaded', function() {
+        {% if result and result.nucleotide_frequency %}
+            const ctx = document.getElementById('nucleotideChart');
+            if (ctx) {
+                console.log('Creating chart with data:', {
+                    A: {{ result.nucleotide_frequency.A }},
+                    T: {{ result.nucleotide_frequency.T }},
+                    G: {{ result.nucleotide_frequency.G }},
+                    C: {{ result.nucleotide_frequency.C }}
+                });
+                
+                new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['A', 'T', 'G', 'C'],
+                        datasets: [{
+                            data: [
+                                {{ result.nucleotide_frequency.A }},
+                                {{ result.nucleotide_frequency.T }},
+                                {{ result.nucleotide_frequency.G }},
+                                {{ result.nucleotide_frequency.C }}
+                            ],
+                            backgroundColor: [
+                                '#FF6384',
+                                '#36A2EB',
+                                '#FFCE56',
+                                '#4BC0C0'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        }
+                    }
+                });
+            }
+        {% endif %}
+    });
+</script>
+
+<script>
+function copyToClipboard(text, buttonElement) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalIcon = buttonElement.innerHTML;
+        
+        // Change to success icon
+        buttonElement.innerHTML = '<i class="fas fa-check text-green-500"></i>';
+        
+        // Revert back after 2 seconds
+        setTimeout(() => {
+            buttonElement.innerHTML = originalIcon;
+        }, 2000);
+    }).catch(() => {
+        // Error handling
+        buttonElement.innerHTML = '<i class="fas fa-times text-red-500"></i>';
+        setTimeout(() => {
+            buttonElement.innerHTML = '<i class="fas fa-copy"></i>';
+        }, 2000);
+    });
+}
+</script>
 </body>
 </html>
     ''', result=result)         
