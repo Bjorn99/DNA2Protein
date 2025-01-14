@@ -279,7 +279,7 @@ def index():
             # if len(dna_sequence) > 10000:  # Adjust limit as needed
             #     raise ValueError("DNA sequence is too long (maximum 10000 bases)")
                 
-            # Add basic XSS protection
+            # basic XSS protection
             dna_sequence = re.sub(r'[<>]', '', dna_sequence)
             
             # Process the sequence
