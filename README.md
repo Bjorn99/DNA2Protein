@@ -4,7 +4,7 @@ This application is a web-based tool designed to analyze DNA sequences for vario
 
 ## Live Demo
 
-You can view the live application at [this link](https://dna2protein.onrender.com/  ).
+You can view the live application at [this link](https://dna2protein.onrender.com/  ) (The website is slow to load initially, so please be patient).
 
 ## Project overview
 
