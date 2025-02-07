@@ -2,8 +2,9 @@
 name = "dna2protein-app"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Bjorn99 <61169176+Bjorn99@users.noreply.github.com>"]
 readme = "README.md"
+packages = [{include = "app.py"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"
